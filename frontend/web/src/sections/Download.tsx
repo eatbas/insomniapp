@@ -1,8 +1,72 @@
+import { useEffect, useState } from 'react'
 import { Download as DownloadIcon, Monitor, Apple } from 'lucide-react'
 
+const GITHUB_OWNER = 'eatbas'
+const GITHUB_REPO = 'insomniapp'
 const GITHUB_RELEASES = 'https://github.com/eatbas/insomniapp/releases/latest'
+const GITHUB_API_LATEST = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`
+
+type DownloadLinks = {
+  windows: string
+  macos: string
+}
+
+type ReleaseAsset = {
+  name: string
+  browser_download_url: string
+}
+
+type LatestReleaseResponse = {
+  assets?: ReleaseAsset[]
+}
+
+function findAssetUrl(assets: ReleaseAsset[], matcher: RegExp): string | null {
+  const asset = assets.find(({ name }) => matcher.test(name))
+  return asset?.browser_download_url ?? null
+}
 
 export function Download() {
+  const [links, setLinks] = useState<DownloadLinks>({
+    windows: GITHUB_RELEASES,
+    macos: GITHUB_RELEASES,
+  })
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const loadLatestReleaseAssets = async () => {
+      try {
+        const response = await fetch(GITHUB_API_LATEST, {
+          headers: { Accept: 'application/vnd.github+json' },
+          signal: controller.signal,
+        })
+
+        if (!response.ok) return
+
+        const payload = (await response.json()) as LatestReleaseResponse
+        const assets = payload.assets ?? []
+
+        const windows = findAssetUrl(assets, /_x64-setup\.exe$/i) ?? GITHUB_RELEASES
+        const macos =
+          findAssetUrl(assets, /_universal\.dmg$/i) ??
+          findAssetUrl(assets, /\.dmg$/i) ??
+          GITHUB_RELEASES
+
+        setLinks({ windows, macos })
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    void loadLatestReleaseAssets()
+
+    return () => {
+      controller.abort()
+    }
+  }, [])
+
   return (
     <section id="download" className="py-24 px-6">
       <div className="max-w-4xl mx-auto text-center">
@@ -24,7 +88,7 @@ export function Download() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
               <a
-                href={`${GITHUB_RELEASES}/download/insomniapp_0.1.0_x64-setup.exe`}
+                href={links.windows}
                 className="group flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white font-semibold hover:shadow-lg hover:shadow-primary/25 transition-all duration-300 hover:-translate-y-0.5 w-full sm:w-auto justify-center"
               >
                 <Monitor className="w-5 h-5" />
@@ -32,7 +96,7 @@ export function Download() {
                 <span className="text-xs opacity-60">.exe</span>
               </a>
               <a
-                href={`${GITHUB_RELEASES}/download/insomniapp_0.1.0_aarch64.dmg`}
+                href={links.macos}
                 className="group flex items-center gap-3 px-8 py-4 rounded-xl glass glass-hover font-semibold transition-all duration-300 hover:-translate-y-0.5 w-full sm:w-auto justify-center"
               >
                 <Apple className="w-5 h-5" />
