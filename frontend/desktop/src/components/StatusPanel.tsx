@@ -1,6 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { getVersion } from "@tauri-apps/api/app";
-import { useState, useEffect } from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import type { AppStatus } from "../types";
 
@@ -66,11 +64,6 @@ function MoonIcon() {
 
 export default function StatusPanel({ status }: Props) {
   const { isDark, toggleTheme } = useTheme();
-  const [version, setVersion] = useState("");
-
-  useEffect(() => {
-    getVersion().then(setVersion);
-  }, []);
 
   const handleToggle = async () => {
     await invoke("toggle_enabled");
@@ -104,11 +97,6 @@ export default function StatusPanel({ status }: Props) {
       <span className={`text-[10px] font-bold shrink-0 ${isDark ? "text-white" : "text-gray-900"}`}>
         insomniAPP
       </span>
-      {version && (
-        <span className={`text-[8px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-          v{version}
-        </span>
-      )}
       <div className="flex items-center gap-1">
         <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
         <span className={`text-[10px] font-medium ${textColor}`}>{label}</span>

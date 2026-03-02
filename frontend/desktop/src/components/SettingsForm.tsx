@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useTheme } from "../contexts/ThemeContext";
 import type { AppStatus } from "../types";
 
@@ -10,6 +11,11 @@ interface Props {
 export default function SettingsForm({ status }: Props) {
   const { isDark } = useTheme();
   const debounceRef = useRef<number | null>(null);
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getVersion().then(setVersion);
+  }, []);
 
   const handleChange = (field: string, value: string) => {
     const num = parseInt(value, 10);
@@ -60,6 +66,12 @@ export default function SettingsForm({ status }: Props) {
         />
         <span className={`text-[10px] ${isDark ? "text-gray-600" : "text-gray-400"}`}>s</span>
       </div>
+      <div className="flex-1" />
+      {version && (
+        <span className={`text-[8px] ${isDark ? "text-gray-600" : "text-gray-400"}`}>
+          v{version}
+        </span>
+      )}
     </div>
   );
 }
