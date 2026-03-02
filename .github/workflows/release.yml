@@ -38,6 +38,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           projectPath: frontend/desktop
           args: --bundles nsis
@@ -46,6 +47,7 @@ jobs:
           releaseBody: 'See the assets below to download the installer for your platform.'
           releaseDraft: false
           prerelease: false
+          updaterJsonKeepUniversal: true
 
   build-macos:
     runs-on: macos-latest
@@ -80,6 +82,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           projectPath: frontend/desktop
           args: --target universal-apple-darwin --bundles dmg
@@ -88,3 +91,4 @@ jobs:
           releaseBody: 'See the assets below to download the installer for your platform.'
           releaseDraft: false
           prerelease: false
+          updaterJsonKeepUniversal: true

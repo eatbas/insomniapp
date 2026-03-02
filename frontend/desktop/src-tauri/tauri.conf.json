@@ -3,6 +3,14 @@
   "productName": "insomniAPP",
   "version": "0.1.0",
   "identifier": "com.insomniapp.app",
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE0M0ZDOEE2QzI1MzcxN0MKUldSOGNWUENwc2cvRkNQZHovcGt0d0tEUHBTSnp3dHRJSEhDamtxbFRROXFjMnBpYmtlaUhRZmYK",
+      "endpoints": [
+        "https://github.com/eatbas/insomniapp/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

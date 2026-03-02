@@ -1,5 +1,6 @@
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { useAppState } from "./hooks/useAppState";
+import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import StatusPanel from "./components/StatusPanel";
 import IdleTimer from "./components/IdleTimer";
 import MeetingIndicator from "./components/MeetingIndicator";
@@ -8,6 +9,7 @@ import SettingsForm from "./components/SettingsForm";
 function AppContent() {
   const status = useAppState();
   const { isDark } = useTheme();
+  const { update, installing, install } = useUpdateCheck();
 
   if (!status) {
     return (
@@ -25,6 +27,19 @@ function AppContent() {
         <MeetingIndicator status={status} />
       </div>
       <SettingsForm status={status} />
+      {update && (
+        <button
+          onClick={install}
+          disabled={installing}
+          className={`w-full text-[9px] py-0.5 rounded text-center font-medium cursor-pointer ${
+            installing
+              ? "bg-gray-500 text-white"
+              : "bg-emerald-600 hover:bg-emerald-700 text-white"
+          }`}
+        >
+          {installing ? "Updating..." : `Update v${update.version} available`}
+        </button>
+      )}
     </div>
   );
 }
