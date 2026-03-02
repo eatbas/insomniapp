@@ -14,7 +14,9 @@
       "Bash(npm install)",
       "Bash(npm install:*)",
       "Bash(cargo check:*)",
-      "Bash(npx tauri build:*)"
+      "Bash(npx tauri build:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
     ]
   }
 }
