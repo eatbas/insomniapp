@@ -1,0 +1,126 @@
+===============================================
+  insomniAPP - Release Cheatsheet
+===============================================
+
+HOW RELEASES WORK
+-----------------
+- GitHub Actions builds Windows (.exe) and macOS (.dmg) installers
+- Builds trigger ONLY on version tag push (v*) or manual dispatch
+- Regular commits/pushes do NOT trigger builds
+- The auto-updater checks GitHub Releases for new versions on app launch
+
+
+STEP-BY-STEP: CREATING A NEW RELEASE
+-------------------------------------
+
+1. Bump version in ALL THREE files (they must match):
+
+   frontend/desktop/src-tauri/tauri.conf.json
+     "version": "0.2.0"
+
+   frontend/desktop/src-tauri/Cargo.toml
+     version = "0.2.0"
+
+   frontend/desktop/package.json
+     "version": "0.2.0"
+
+2. Commit the version bump:
+
+   git add frontend/desktop/src-tauri/tauri.conf.json
+   git add frontend/desktop/src-tauri/Cargo.toml
+   git add frontend/desktop/package.json
+   git commit -m "chore: bump version to 0.2.0"
+
+3. Create a tag (must match the version):
+
+   git tag v0.2.0
+
+4. Push commit and tag:
+
+   git push origin main --tags
+
+5. Monitor the build:
+
+   https://github.com/eatbas/insomniapp/actions
+
+6. When done, release appears at:
+
+   https://github.com/eatbas/insomniapp/releases/tag/v0.2.0
+
+
+MANUAL DISPATCH (testing without a tag)
+---------------------------------------
+GitHub > Actions > Release > Run workflow > select branch > Run
+
+Note: This reads the version from tauri.conf.json and creates
+a release with that version. Useful for testing the pipeline.
+
+
+WHAT GETS BUILT
+---------------
+Windows x64:   insomniAPP_{version}_x64-setup.exe   (NSIS installer)
+macOS universal: insomniAPP_{version}_universal.dmg  (Apple Silicon + Intel)
+Updater:       latest.json                           (auto-updater manifest)
+
+
+AUTO-UPDATER FLOW
+-----------------
+- App launches -> checks latest.json from GitHub Releases
+- If newer version exists -> green "Update vX.Y.Z available" button appears
+- User clicks -> downloads, verifies signature, installs, restarts
+- Signature verification uses the public key in tauri.conf.json
+
+
+VERSION FORMAT
+--------------
+Use semantic versioning: MAJOR.MINOR.PATCH
+  0.1.0 -> 0.1.1  (patch: bug fix)
+  0.1.0 -> 0.2.0  (minor: new feature)
+  0.1.0 -> 1.0.0  (major: breaking change)
+
+Tag format: v{version}  (e.g., v0.2.0)
+The "v" prefix is required for the workflow trigger.
+
+
+IMPORTANT RULES
+---------------
+- Tag version MUST match tauri.conf.json version
+  Tag v0.2.0 -> tauri.conf.json "version": "0.2.0"
+  If they don't match, the release will be created with the wrong tag.
+
+- All three version files must be in sync.
+
+- Never lose the signing private key (~/.tauri/insomniapp.key)
+  Without it, you cannot sign updates and existing users cannot update.
+
+- The TAURI_SIGNING_PRIVATE_KEY GitHub secret must stay configured.
+
+
+RE-RUNNING A FAILED BUILD
+--------------------------
+If one platform fails (e.g., macOS passes but Windows fails):
+1. Go to the failed run in Actions
+2. Click "Re-run failed jobs"
+3. It attaches artifacts to the same release
+
+
+ADDING CODE SIGNING LATER
+--------------------------
+macOS: Add these GitHub secrets:
+  APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+  APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
+
+Windows: Add TAURI_SIGNING_PRIVATE_KEY (for Authenticode)
+
+Then add them as env vars in the workflow's tauri-action step.
+
+
+QUICK REFERENCE
+---------------
+Workflow file:    .github/workflows/release.yml
+Tauri config:     frontend/desktop/src-tauri/tauri.conf.json
+Rust config:      frontend/desktop/src-tauri/Cargo.toml
+Package config:   frontend/desktop/package.json
+Signing key:      ~/.tauri/insomniapp.key (PRIVATE - never commit)
+Public key:       Embedded in tauri.conf.json (safe to commit)
+GitHub secret:    TAURI_SIGNING_PRIVATE_KEY
