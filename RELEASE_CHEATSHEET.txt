@@ -10,42 +10,42 @@ HOW RELEASES WORK
 - The auto-updater checks GitHub Releases for new versions on app launch
 
 
-STEP-BY-STEP: CREATING A NEW RELEASE
--------------------------------------
+CREATING A NEW RELEASE (automated)
+------------------------------------
+
+PowerShell:   .\scripts\release.ps1 0.2.0
+Bash/macOS:   ./scripts/release.sh 0.2.0
+
+The script does everything:
+  1. Validates version format (X.Y.Z)
+  2. Checks for uncommitted changes
+  3. Checks tag doesn't already exist
+  4. Bumps version in all 3 files
+  5. Commits the bump
+  6. Creates the git tag
+  7. Pushes commit + tag to origin
+
+Monitor at:   https://github.com/eatbas/insomniapp/actions
+Release at:   https://github.com/eatbas/insomniapp/releases/tag/v0.2.0
+
+
+MANUAL STEPS (if you prefer not using the script)
+--------------------------------------------------
 
 1. Bump version in ALL THREE files (they must match):
 
-   frontend/desktop/src-tauri/tauri.conf.json
-     "version": "0.2.0"
+   frontend/desktop/src-tauri/tauri.conf.json   "version": "0.2.0"
+   frontend/desktop/src-tauri/Cargo.toml        version = "0.2.0"
+   frontend/desktop/package.json                "version": "0.2.0"
 
-   frontend/desktop/src-tauri/Cargo.toml
-     version = "0.2.0"
+2. Commit, tag, push:
 
-   frontend/desktop/package.json
-     "version": "0.2.0"
-
-2. Commit the version bump:
-
-   git add frontend/desktop/src-tauri/tauri.conf.json
-   git add frontend/desktop/src-tauri/Cargo.toml
-   git add frontend/desktop/package.json
+   git add frontend/desktop/src-tauri/tauri.conf.json \
+           frontend/desktop/src-tauri/Cargo.toml \
+           frontend/desktop/package.json
    git commit -m "chore: bump version to 0.2.0"
-
-3. Create a tag (must match the version):
-
    git tag v0.2.0
-
-4. Push commit and tag:
-
    git push origin main --tags
-
-5. Monitor the build:
-
-   https://github.com/eatbas/insomniapp/actions
-
-6. When done, release appears at:
-
-   https://github.com/eatbas/insomniapp/releases/tag/v0.2.0
 
 
 MANUAL DISPATCH (testing without a tag)
