@@ -6,8 +6,8 @@ use tauri::{
 
 use crate::state::AppState;
 
-const WINDOW_RIGHT_MARGIN: i32 = 24;
-const WINDOW_BOTTOM_MARGIN: i32 = 24;
+const WINDOW_LEFT_MARGIN: i32 = 24;
+const WINDOW_BOTTOM_MARGIN: i32 = 72;
 
 fn position_main_window(window: &WebviewWindow) {
     let Ok(Some(monitor)) = window.primary_monitor() else {
@@ -22,7 +22,7 @@ fn position_main_window(window: &WebviewWindow) {
     let monitor_pos = monitor.position();
     let monitor_size = monitor.size();
 
-    let x = monitor_pos.x + monitor_size.width as i32 - window_size.width as i32 - WINDOW_RIGHT_MARGIN;
+    let x = monitor_pos.x + WINDOW_LEFT_MARGIN;
     let y =
         monitor_pos.y + monitor_size.height as i32 - window_size.height as i32 - WINDOW_BOTTOM_MARGIN;
 

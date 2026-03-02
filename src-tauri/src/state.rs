@@ -21,8 +21,8 @@ impl Default for AppStatus {
             idle_seconds: 0,
             is_in_meeting: false,
             is_simulating: false,
-            idle_threshold_secs: 60,
-            simulation_interval_secs: 30,
+            idle_threshold_secs: 30,
+            simulation_interval_secs: 15,
         }
     }
 }
