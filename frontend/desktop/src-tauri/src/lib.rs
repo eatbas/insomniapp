@@ -13,6 +13,9 @@ use tauri::WindowEvent;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            tray::show_main_window(app);
+        }))
         .manage(AppState::default())
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

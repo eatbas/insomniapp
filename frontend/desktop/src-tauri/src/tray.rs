@@ -32,7 +32,7 @@ fn position_main_window(window: &WebviewWindow) {
     let _ = window.set_position(PhysicalPosition::new(clamped_x, clamped_y));
 }
 
-fn show_main_window(app: &AppHandle) {
+pub(crate) fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
