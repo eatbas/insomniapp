@@ -35,20 +35,22 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app (Windows NSIS x64)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: frontend/desktop
-          args: --bundles nsis,updater
+          args: --bundles nsis
           tagName: v__VERSION__
           releaseName: 'insomniAPP v__VERSION__'
           releaseBody: 'See the assets below to download the installer for your platform.'
           releaseDraft: false
           prerelease: false
-          updaterJsonKeepUniversal: true
+          updaterJsonPreferNsis: true
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
 
   build-macos:
     runs-on: macos-latest
@@ -80,17 +82,18 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app (macOS universal DMG)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: frontend/desktop
-          args: --target universal-apple-darwin --bundles dmg,updater
+          args: --target universal-apple-darwin --bundles dmg
           tagName: v__VERSION__
           releaseName: 'insomniAPP v__VERSION__'
           releaseBody: 'See the assets below to download the installer for your platform.'
           releaseDraft: false
           prerelease: false
-          updaterJsonKeepUniversal: true
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
