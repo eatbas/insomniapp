@@ -1,6 +1,6 @@
 [package]
 name = "insomniapp"
-version = "0.2.2"
+version = "0.3.0"
 description = "Keep your computer awake"
 authors = ["you"]
 edition = "2021"
