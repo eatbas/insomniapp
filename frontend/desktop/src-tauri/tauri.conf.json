@@ -5,7 +5,7 @@
   "identifier": "com.insomniapp.app",
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE0M0ZDOEE2QzI1MzcxN0MKUldSOGNWUENwc2cvRkNQZHovcGt0d0tEUHBTSnp3dHRJSEhDamtxbFRROXFjMnBpYmtlaUhRZmYK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyNEI4NURDMDg1NEE0QUQKUldTdHBGUUkzSVZMRXVOZnF6RFJsR0FVdmpEejlGZ2JEViswMFZ3VWRoN21RZ0lnTWVuT3pNa0cK",
       "endpoints": [
         "https://github.com/eatbas/insomniapp/releases/latest/download/latest.json"
       ]
