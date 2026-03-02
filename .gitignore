@@ -23,3 +23,5 @@ Thumbs.db
 
 # Tauri generated
 frontend/desktop/src-tauri/gen/
+*.key
+*.key.pub
