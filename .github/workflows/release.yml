@@ -41,7 +41,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           projectPath: frontend/desktop
-          args: --bundles nsis
+          args: --bundles nsis,updater
           tagName: v__VERSION__
           releaseName: 'insomniAPP v__VERSION__'
           releaseBody: 'See the assets below to download the installer for your platform.'
@@ -85,7 +85,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           projectPath: frontend/desktop
-          args: --target universal-apple-darwin --bundles dmg
+          args: --target universal-apple-darwin --bundles dmg,updater
           tagName: v__VERSION__
           releaseName: 'insomniAPP v__VERSION__'
           releaseBody: 'See the assets below to download the installer for your platform.'
