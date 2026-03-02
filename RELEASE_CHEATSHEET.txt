@@ -13,20 +13,25 @@ HOW RELEASES WORK
 CREATING A NEW RELEASE (automated)
 ------------------------------------
 
-PowerShell:   .\scripts\release.ps1 0.2.0
-Bash/macOS:   ./scripts/release.sh 0.2.0
+PowerShell:   .\scripts\release.ps1             (patch: 0.1.0 -> 0.1.1)
+              .\scripts\release.ps1 minor       (minor: 0.1.0 -> 0.2.0)
+              .\scripts\release.ps1 major       (major: 0.1.0 -> 1.0.0)
+              .\scripts\release.ps1 0.5.0       (explicit version)
 
-The script does everything:
-  1. Validates version format (X.Y.Z)
-  2. Checks for uncommitted changes
-  3. Checks tag doesn't already exist
-  4. Bumps version in all 3 files
-  5. Commits the bump
-  6. Creates the git tag
-  7. Pushes commit + tag to origin
+Bash/macOS:   ./scripts/release.sh              (patch: 0.1.0 -> 0.1.1)
+              ./scripts/release.sh minor        (minor: 0.1.0 -> 0.2.0)
+              ./scripts/release.sh major        (major: 0.1.0 -> 1.0.0)
+              ./scripts/release.sh 0.5.0        (explicit version)
+
+No argument = auto-increment patch version.
+
+The script shows current/new version, asks to confirm, then:
+  1. Bumps version in all 3 files
+  2. Commits the bump
+  3. Creates the git tag
+  4. Pushes commit + tag to origin
 
 Monitor at:   https://github.com/eatbas/insomniapp/actions
-Release at:   https://github.com/eatbas/insomniapp/releases/tag/v0.2.0
 
 
 MANUAL STEPS (if you prefer not using the script)

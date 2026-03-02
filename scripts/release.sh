@@ -1,25 +1,46 @@
 #!/usr/bin/env bash
 # insomniAPP Release Script (Bash)
-# Usage: ./scripts/release.sh 0.2.0
+# Usage: ./scripts/release.sh [version] [patch|minor|major]
+# Examples:
+#   ./scripts/release.sh              (auto-increment patch: 0.1.0 -> 0.1.1)
+#   ./scripts/release.sh minor        (auto-increment minor: 0.1.0 -> 0.2.0)
+#   ./scripts/release.sh major        (auto-increment major: 0.1.0 -> 1.0.0)
+#   ./scripts/release.sh 0.5.0        (explicit version)
 
 set -euo pipefail
 
-VERSION="${1:-}"
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Error: Not in a git repository"; exit 1; }
 
-if [ -z "$VERSION" ]; then
-    echo "Usage: ./scripts/release.sh <version>"
-    echo "Example: ./scripts/release.sh 0.2.0"
-    exit 1
-fi
+# Read current version from tauri.conf.json
+CURRENT=$(grep -o '"version": "[^"]*"' "$ROOT/frontend/desktop/src-tauri/tauri.conf.json" | head -1 | cut -d'"' -f4)
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
-# Validate semver format
-if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-    echo "Error: Version must be in format X.Y.Z (e.g., 0.2.0)"
+ARG="${1:-patch}"
+
+# Determine new version
+if echo "$ARG" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    VERSION="$ARG"
+elif [ "$ARG" = "patch" ]; then
+    VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+elif [ "$ARG" = "minor" ]; then
+    VERSION="$MAJOR.$((MINOR + 1)).0"
+elif [ "$ARG" = "major" ]; then
+    VERSION="$((MAJOR + 1)).0.0"
+else
+    echo "Usage: ./scripts/release.sh [version|patch|minor|major]"
+    echo ""
+    echo "  patch   (default)  $CURRENT -> $MAJOR.$MINOR.$((PATCH + 1))"
+    echo "  minor              $CURRENT -> $MAJOR.$((MINOR + 1)).0"
+    echo "  major              $CURRENT -> $((MAJOR + 1)).0.0"
+    echo "  X.Y.Z              explicit version"
     exit 1
 fi
 
 TAG="v$VERSION"
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Error: Not in a git repository"; exit 1; }
+
+echo "Current version: $CURRENT"
+echo "New version:     $VERSION  (tag: $TAG)"
+echo ""
 
 # Check for uncommitted changes
 if [ -n "$(git status --porcelain)" ]; then
@@ -34,10 +55,13 @@ if git tag -l "$TAG" | grep -q "$TAG"; then
     exit 1
 fi
 
-# Read current version from tauri.conf.json
-CURRENT=$(grep -o '"version": "[^"]*"' "$ROOT/frontend/desktop/src-tauri/tauri.conf.json" | head -1 | cut -d'"' -f4)
-echo "Current version: $CURRENT"
-echo "New version:     $VERSION"
+# Confirm
+read -rp "Proceed? [Y/n] " CONFIRM
+if [ -n "$CONFIRM" ] && [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
+    echo "Aborted."
+    exit 0
+fi
+
 echo ""
 
 # Bump tauri.conf.json
