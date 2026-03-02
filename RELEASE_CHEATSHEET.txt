@@ -129,3 +129,8 @@ Package config:   frontend/desktop/package.json
 Signing key:      ~/.tauri/insomniapp.key (PRIVATE - never commit)
 Public key:       Embedded in tauri.conf.json (safe to commit)
 GitHub secret:    TAURI_SIGNING_PRIVATE_KEY
+
+.\scripts\release.ps1           # 0.1.0 -> 0.1.1 (patch, default)
+.\scripts\release.ps1 minor     # 0.1.0 -> 0.2.0
+.\scripts\release.ps1 major     # 0.1.0 -> 1.0.0
+.\scripts\release.ps1 2.0.0     # explicit version
