@@ -1,6 +1,25 @@
+import { useEffect, useState } from 'react'
 import { Download, Github, ChevronDown } from 'lucide-react'
 
 export function Hero() {
+  const [version, setVersion] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    fetch('https://api.github.com/repos/eatbas/insomniapp/releases/latest', {
+      headers: { Accept: 'application/vnd.github+json' },
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.tag_name) setVersion(data.tag_name)
+      })
+      .catch(() => {})
+
+    return () => controller.abort()
+  }, [])
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background effects */}
@@ -32,7 +51,7 @@ export function Hero() {
         <div className="mb-6">
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-base bg-primary/10 text-primary border border-primary/20">
             <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
-            v0.1.0 — Built with Tauri 2 + React + Rust
+            {version ? `${version} — ` : ''}Built with Tauri 2 + React + Rust
           </span>
         </div>
 

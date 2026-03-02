@@ -48,8 +48,12 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
 
     let menu = Menu::with_items(app, &[&toggle_item, &show_item, &quit_item])?;
 
+    let version = app.config().version.clone().unwrap_or_default();
+    let tooltip = format!("InsomniApp v{}", version);
+
     let _tray = TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone())
+        .tooltip(tooltip)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id.as_ref() {
