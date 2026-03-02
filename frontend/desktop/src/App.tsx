@@ -9,7 +9,7 @@ import SettingsForm from "./components/SettingsForm";
 function AppContent() {
   const status = useAppState();
   const { isDark } = useTheme();
-  const { update, installing, install } = useUpdateCheck();
+  const { installing, updateVersion } = useUpdateCheck();
 
   if (!status) {
     return (
@@ -27,18 +27,10 @@ function AppContent() {
         <MeetingIndicator status={status} />
       </div>
       <SettingsForm status={status} />
-      {update && (
-        <button
-          onClick={install}
-          disabled={installing}
-          className={`w-full text-[9px] py-0.5 rounded text-center font-medium cursor-pointer ${
-            installing
-              ? "bg-gray-500 text-white"
-              : "bg-emerald-600 hover:bg-emerald-700 text-white"
-          }`}
-        >
-          {installing ? "Updating..." : `Update v${update.version} available`}
-        </button>
+      {installing && (
+        <div className="w-full text-[9px] py-0.5 rounded text-center font-medium bg-gray-500 text-white">
+          {`Updating to v${updateVersion ?? "latest"}...`}
+        </div>
       )}
     </div>
   );

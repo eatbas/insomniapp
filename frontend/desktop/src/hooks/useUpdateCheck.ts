@@ -7,19 +7,42 @@ const FOUR_HOURS = 4 * 60 * 60 * 1000;
 const COOLDOWN = 5 * 60 * 1000;
 
 export function useUpdateCheck() {
-  const [update, setUpdate] = useState<Update | null>(null);
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
   const lastCheckRef = useRef(0);
+  const installingRef = useRef(false);
+  const attemptedVersionRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const installUpdate = (update: Update) => {
+      if (installingRef.current) return;
+      if (attemptedVersionRef.current === update.version) return;
+
+      installingRef.current = true;
+      attemptedVersionRef.current = update.version;
+      setUpdateVersion(update.version);
+      setInstalling(true);
+
+      void update
+        .downloadAndInstall()
+        .then(() => relaunch())
+        .catch(() => {
+          installingRef.current = false;
+          attemptedVersionRef.current = null;
+          setInstalling(false);
+        });
+    };
+
     const runCheck = () => {
+      if (installingRef.current) return;
+
       const now = Date.now();
       if (now - lastCheckRef.current < COOLDOWN) return;
       lastCheckRef.current = now;
 
       check()
         .then((u) => {
-          if (u?.available) setUpdate(u);
+          if (u?.available) installUpdate(u);
         })
         .catch(() => {});
     };
@@ -41,16 +64,5 @@ export function useUpdateCheck() {
     };
   }, []);
 
-  const install = async () => {
-    if (!update) return;
-    setInstalling(true);
-    try {
-      await update.downloadAndInstall();
-      await relaunch();
-    } catch {
-      setInstalling(false);
-    }
-  };
-
-  return { update, installing, install };
+  return { installing, updateVersion };
 }
