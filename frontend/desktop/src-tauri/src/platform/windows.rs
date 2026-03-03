@@ -1,7 +1,23 @@
+use std::ffi::c_void;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Once;
+
+use windows::Win32::Foundation::{HANDLE, WIN32_ERROR};
+use windows::Win32::System::Power::{
+    PowerSettingRegisterNotification, DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS, POWERBROADCAST_SETTING,
+};
+use windows::Win32::System::SystemServices::GUID_SESSION_DISPLAY_STATUS;
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
 use windows::Win32::System::SystemInformation::GetTickCount;
+use windows::Win32::UI::WindowsAndMessaging::{
+    CloseDesktop, OpenInputDesktop, SwitchDesktop, DESKTOP_SWITCHDESKTOP, DEVICE_NOTIFY_CALLBACK,
+    PBT_POWERSETTINGCHANGE,
+};
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
+
+static DISPLAY_MONITOR_INIT: Once = Once::new();
+static DISPLAY_ON: AtomicBool = AtomicBool::new(true);
 
 pub fn get_idle_seconds() -> u64 {
     unsafe {
@@ -25,6 +41,72 @@ pub fn is_mic_active() -> bool {
 
 pub fn is_camera_active() -> bool {
     check_device_active("webcam")
+}
+
+pub fn init_display_state_monitor() {
+    DISPLAY_MONITOR_INIT.call_once(|| unsafe {
+        let params = Box::into_raw(Box::new(DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS {
+            Callback: Some(display_power_callback),
+            Context: std::ptr::null_mut(),
+        }));
+
+        let recipient = HANDLE(params.cast::<c_void>() as isize);
+        let mut registration_handle = std::ptr::null_mut();
+        let result = PowerSettingRegisterNotification(
+            &GUID_SESSION_DISPLAY_STATUS,
+            DEVICE_NOTIFY_CALLBACK,
+            recipient,
+            &mut registration_handle,
+        );
+
+        if result != WIN32_ERROR(0) {
+            let _ = Box::from_raw(params);
+        }
+    });
+}
+
+pub fn is_display_on() -> bool {
+    DISPLAY_ON.load(Ordering::Relaxed)
+}
+
+pub fn is_session_locked() -> bool {
+    unsafe {
+        let Ok(input_desktop) = OpenInputDesktop(0, false, DESKTOP_SWITCHDESKTOP) else {
+            return true;
+        };
+
+        let can_switch = SwitchDesktop(input_desktop).as_bool();
+        let _ = CloseDesktop(input_desktop);
+        !can_switch
+    }
+}
+
+unsafe extern "system" fn display_power_callback(
+    _context: *const c_void,
+    power_broadcast_type: u32,
+    setting: *const c_void,
+) -> u32 {
+    if power_broadcast_type != PBT_POWERSETTINGCHANGE {
+        return 0;
+    }
+
+    if setting.is_null() {
+        return 0;
+    }
+
+    let power_setting = &*(setting as *const POWERBROADCAST_SETTING);
+    if power_setting.PowerSetting != GUID_SESSION_DISPLAY_STATUS {
+        return 0;
+    }
+
+    if power_setting.DataLength < std::mem::size_of::<u32>() as u32 {
+        return 0;
+    }
+
+    // MONITOR_DISPLAY_STATE: 0 = off, 1 = on, 2 = dimmed.
+    let display_state = std::ptr::read_unaligned(power_setting.Data.as_ptr() as *const u32);
+    DISPLAY_ON.store(display_state != 0, Ordering::Relaxed);
+    0
 }
 
 fn check_device_active(device: &str) -> bool {

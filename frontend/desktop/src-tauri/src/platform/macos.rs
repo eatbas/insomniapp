@@ -53,3 +53,13 @@ pub fn is_camera_active() -> bool {
     }
     false
 }
+
+pub fn is_session_locked() -> bool {
+    false
+}
+
+pub fn init_display_state_monitor() {}
+
+pub fn is_display_on() -> bool {
+    true
+}

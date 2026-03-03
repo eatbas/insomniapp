@@ -77,6 +77,14 @@ export default function StatusPanel({ status }: Props) {
     label = "Disabled";
     dotColor = "bg-gray-500";
     textColor = "text-gray-400";
+  } else if (status.isSessionLocked) {
+    label = "Paused (Locked)";
+    dotColor = "bg-yellow-400";
+    textColor = "text-yellow-400";
+  } else if (status.isDisplayOff) {
+    label = "Paused (Screen Off)";
+    dotColor = "bg-yellow-400";
+    textColor = "text-yellow-400";
   } else if (status.isInMeeting) {
     label = "Paused";
     dotColor = "bg-yellow-400";

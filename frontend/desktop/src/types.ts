@@ -3,6 +3,8 @@ export interface AppStatus {
   isIdle: boolean;
   idleSeconds: number;
   isInMeeting: boolean;
+  isSessionLocked: boolean;
+  isDisplayOff: boolean;
   isSimulating: boolean;
   idleThresholdSecs: number;
   simulationIntervalSecs: number;

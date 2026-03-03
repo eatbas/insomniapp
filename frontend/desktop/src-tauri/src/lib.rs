@@ -32,6 +32,7 @@ pub fn run() {
         ])
         .setup(|app| {
             tray::setup_tray(app)?;
+            platform::init_display_state_monitor();
             let handle = app.handle().clone();
             keepawake::start_engine(handle);
             Ok(())
