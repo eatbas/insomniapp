@@ -7,11 +7,13 @@ use windows::Win32::System::Power::{
     PowerSettingRegisterNotification, DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS, POWERBROADCAST_SETTING,
 };
 use windows::Win32::System::SystemServices::GUID_SESSION_DISPLAY_STATUS;
+use windows::Win32::System::StationsAndDesktops::{
+    CloseDesktop, OpenInputDesktop, SwitchDesktop, DESKTOP_CONTROL_FLAGS, DESKTOP_SWITCHDESKTOP,
+};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
 use windows::Win32::System::SystemInformation::GetTickCount;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CloseDesktop, OpenInputDesktop, SwitchDesktop, DESKTOP_SWITCHDESKTOP, DEVICE_NOTIFY_CALLBACK,
-    PBT_POWERSETTINGCHANGE,
+    DEVICE_NOTIFY_CALLBACK, PBT_POWERSETTINGCHANGE,
 };
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
@@ -50,7 +52,7 @@ pub fn init_display_state_monitor() {
             Context: std::ptr::null_mut(),
         }));
 
-        let recipient = HANDLE(params.cast::<c_void>() as isize);
+        let recipient = HANDLE(params.cast::<c_void>());
         let mut registration_handle = std::ptr::null_mut();
         let result = PowerSettingRegisterNotification(
             &GUID_SESSION_DISPLAY_STATUS,
@@ -71,11 +73,13 @@ pub fn is_display_on() -> bool {
 
 pub fn is_session_locked() -> bool {
     unsafe {
-        let Ok(input_desktop) = OpenInputDesktop(0, false, DESKTOP_SWITCHDESKTOP) else {
+        let Ok(input_desktop) =
+            OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_SWITCHDESKTOP)
+        else {
             return true;
         };
 
-        let can_switch = SwitchDesktop(input_desktop).as_bool();
+        let can_switch = SwitchDesktop(input_desktop).is_ok();
         let _ = CloseDesktop(input_desktop);
         !can_switch
     }
