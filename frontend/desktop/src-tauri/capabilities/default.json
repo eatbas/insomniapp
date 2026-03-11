@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for insomniapp",
-  "windows": ["main"],
+  "windows": ["main", "disguise"],
   "permissions": [
     "core:default",
     "core:event:default",

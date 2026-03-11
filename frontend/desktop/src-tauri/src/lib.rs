@@ -1,4 +1,5 @@
 mod commands;
+mod disguise;
 mod idle;
 mod keepawake;
 mod meeting;
@@ -21,19 +22,29 @@ pub fn run() {
         .manage(AppState::default())
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                // Hide both main and disguise windows instead of destroying them
+                if window.label() == "main" || window.label() == "disguise" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_status,
             commands::toggle_enabled,
             commands::update_settings,
+            commands::open_disguise_window,
+            commands::get_disguise_state,
+            commands::list_running_apps,
+            commands::apply_disguise,
+            commands::reset_disguise,
+            commands::debug_log,
         ])
         .setup(|app| {
             tray::setup_tray(app)?;
-            platform::init_display_state_monitor();
             let handle = app.handle().clone();
+            disguise::initialize(&handle);
+            platform::init_display_state_monitor();
             keepawake::start_engine(handle);
             Ok(())
         })

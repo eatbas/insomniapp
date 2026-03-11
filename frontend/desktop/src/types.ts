@@ -14,3 +14,9 @@ export interface SettingsPayload {
   idleThresholdSecs?: number;
   simulationIntervalSecs?: number;
 }
+
+export interface DisguiseState {
+  supported: boolean;
+  currentName: string;
+  isDisguised: boolean;
+}

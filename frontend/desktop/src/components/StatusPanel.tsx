@@ -4,6 +4,8 @@ import type { AppStatus } from "../types";
 
 interface Props {
   status: AppStatus;
+  appName: string;
+  disguiseSupported: boolean;
 }
 
 function Logo() {
@@ -62,11 +64,16 @@ function MoonIcon() {
   );
 }
 
-export default function StatusPanel({ status }: Props) {
+export default function StatusPanel({ status, appName, disguiseSupported }: Props) {
   const { isDark, toggleTheme } = useTheme();
 
   const handleToggle = async () => {
     await invoke("toggle_enabled");
+  };
+
+  const handleOpenDisguise = async () => {
+    await invoke("debug_log", { message: "StatusPanel: disguise button clicked" });
+    await invoke("open_disguise_window");
   };
 
   let label: string;
@@ -103,7 +110,7 @@ export default function StatusPanel({ status }: Props) {
     <div className="flex items-center gap-1">
       <Logo />
       <span className={`text-[10px] font-bold shrink-0 ${isDark ? "text-white" : "text-gray-900"}`}>
-        insomniAPP
+        {appName}
       </span>
       <div className="flex items-center gap-1">
         <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
@@ -131,6 +138,17 @@ export default function StatusPanel({ status }: Props) {
       >
         {status.enabled ? "Disable" : "Enable"}
       </button>
+      {disguiseSupported && (
+        <button
+          onClick={handleOpenDisguise}
+          className={`w-3 h-3 rounded-full transition-colors ${
+            isDark
+              ? "bg-indigo-500 hover:bg-indigo-400"
+              : "bg-indigo-600 hover:bg-indigo-500"
+          }`}
+          title="Open disguise options"
+        />
+      )}
     </div>
   );
 }

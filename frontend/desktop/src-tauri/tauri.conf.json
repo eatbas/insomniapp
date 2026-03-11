@@ -27,6 +27,15 @@
         "resizable": false,
         "visible": false,
         "decorations": true
+      },
+      {
+        "label": "disguise",
+        "title": "Select disguise app",
+        "width": 360,
+        "height": 420,
+        "resizable": false,
+        "visible": false,
+        "alwaysOnTop": true
       }
     ],
     "security": {

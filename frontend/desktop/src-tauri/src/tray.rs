@@ -4,7 +4,7 @@ use tauri::{
     App, AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow,
 };
 
-use crate::state::AppState;
+use crate::{disguise, state::AppState};
 
 const WINDOW_LEFT_MARGIN: i32 = 24;
 const WINDOW_BOTTOM_MARGIN: i32 = 72;
@@ -23,8 +23,9 @@ fn position_main_window(window: &WebviewWindow) {
     let monitor_size = monitor.size();
 
     let x = monitor_pos.x + WINDOW_LEFT_MARGIN;
-    let y =
-        monitor_pos.y + monitor_size.height as i32 - window_size.height as i32 - WINDOW_BOTTOM_MARGIN;
+    let y = monitor_pos.y + monitor_size.height as i32
+        - window_size.height as i32
+        - WINDOW_BOTTOM_MARGIN;
 
     let clamped_x = x.max(monitor_pos.x);
     let clamped_y = y.max(monitor_pos.y);
@@ -48,10 +49,9 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
 
     let menu = Menu::with_items(app, &[&toggle_item, &show_item, &quit_item])?;
 
-    let version = app.config().version.clone().unwrap_or_default();
-    let tooltip = format!("InsomniApp v{}", version);
+    let tooltip = disguise::DEFAULT_APP_NAME.to_string();
 
-    let _tray = TrayIconBuilder::new()
+    let _tray = TrayIconBuilder::with_id(disguise::TRAY_ID)
         .icon(app.default_window_icon().unwrap().clone())
         .tooltip(tooltip)
         .menu(&menu)
@@ -67,6 +67,7 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
                 show_main_window(app);
             }
             "quit" => {
+                disguise::clear_disguise_on_quit(app);
                 app.exit(0);
             }
             _ => {}

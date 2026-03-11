@@ -1,5 +1,6 @@
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { useAppState } from "./hooks/useAppState";
+import { useDisguiseState } from "./hooks/useDisguiseState";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import StatusPanel from "./components/StatusPanel";
 import IdleTimer from "./components/IdleTimer";
@@ -8,6 +9,7 @@ import SettingsForm from "./components/SettingsForm";
 
 function AppContent() {
   const status = useAppState();
+  const disguise = useDisguiseState();
   const { isDark } = useTheme();
   const { installing, updateVersion } = useUpdateCheck();
 
@@ -21,7 +23,11 @@ function AppContent() {
 
   return (
     <div className={`min-h-screen px-2 pt-1 pb-0.5 flex flex-col gap-0.5 ${isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
-      <StatusPanel status={status} />
+      <StatusPanel
+        status={status}
+        appName={disguise.currentName}
+        disguiseSupported={disguise.supported}
+      />
       <div className="flex items-center gap-1.5">
         <IdleTimer status={status} />
         <MeetingIndicator status={status} />

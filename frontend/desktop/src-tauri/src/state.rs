@@ -33,12 +33,14 @@ impl Default for AppStatus {
 
 pub struct AppState {
     pub status: Mutex<AppStatus>,
+    pub disguise_name: Mutex<Option<String>>,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
             status: Mutex::new(AppStatus::default()),
+            disguise_name: Mutex::new(None),
         }
     }
 }
