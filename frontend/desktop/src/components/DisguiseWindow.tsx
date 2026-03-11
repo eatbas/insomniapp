@@ -15,7 +15,6 @@ export default function DisguiseWindow() {
   const [error, setError] = useState<string | null>(null);
 
   const loadApps = useCallback(async () => {
-    void invoke("debug_log", { message: "DisguiseWindow: loadApps start" });
     setError(null);
     setLoading(true);
 
@@ -27,9 +26,6 @@ export default function DisguiseWindow() {
 
       setState(disguiseState);
       setApps(runningApps);
-      void invoke("debug_log", {
-        message: `DisguiseWindow: loadApps success supported=${disguiseState.supported} currentName=${disguiseState.currentName} appCount=${runningApps.length}`,
-      });
 
       if (runningApps.length === 0) {
         setSelected("");
@@ -37,9 +33,6 @@ export default function DisguiseWindow() {
         setSelected(runningApps[0]);
       }
     } catch {
-      void invoke("debug_log", {
-        message: "DisguiseWindow: loadApps failed",
-      });
       setError("Failed to load running apps. Please try Refresh.");
     } finally {
       setLoading(false);
@@ -47,12 +40,10 @@ export default function DisguiseWindow() {
   }, [selected]);
 
   useEffect(() => {
-    void invoke("debug_log", { message: "DisguiseWindow: mounted" });
     void loadApps();
 
     // Reload apps each time the window is shown via the disguise button
     const unlisten = listen("refresh-apps", () => {
-      void invoke("debug_log", { message: "DisguiseWindow: refresh-apps event" });
       void loadApps();
     });
     return () => { void unlisten.then((f) => f()); };
@@ -70,9 +61,6 @@ export default function DisguiseWindow() {
 
     try {
       await invoke("apply_disguise", { name: selected });
-      void invoke("debug_log", {
-        message: `DisguiseWindow: apply_disguise success name=${selected}`,
-      });
       await relaunch();
     } catch {
       setBusy(false);
@@ -88,9 +76,6 @@ export default function DisguiseWindow() {
 
     try {
       await invoke("reset_disguise");
-      void invoke("debug_log", {
-        message: "DisguiseWindow: reset_disguise success",
-      });
       await relaunch();
     } catch {
       setBusy(false);

@@ -38,7 +38,6 @@ pub fn run() {
             commands::list_running_apps,
             commands::apply_disguise,
             commands::reset_disguise,
-            commands::debug_log,
         ])
         .setup(|app| {
             tray::setup_tray(app)?;

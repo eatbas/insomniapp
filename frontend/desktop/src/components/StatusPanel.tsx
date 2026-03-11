@@ -72,7 +72,6 @@ export default function StatusPanel({ status, appName, disguiseSupported }: Prop
   };
 
   const handleOpenDisguise = async () => {
-    await invoke("debug_log", { message: "StatusPanel: disguise button clicked" });
     await invoke("open_disguise_window");
   };
 

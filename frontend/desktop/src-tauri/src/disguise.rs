@@ -2,6 +2,8 @@ use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::{AppHandle, Emitter, Manager};
+#[cfg(target_os = "windows")]
+use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
 
 pub const DEFAULT_APP_NAME: &str = "insomniAPP";
 pub const TRAY_ID: &str = "main-tray";
@@ -38,11 +40,6 @@ pub fn initialize(app: &AppHandle) {
 
 pub fn get_state(app: &AppHandle) -> DisguiseStatePayload {
     let current_name = current_app_name(app);
-    eprintln!(
-        "[disguise] get_state supported={} current_name={}",
-        is_supported(),
-        current_name
-    );
 
     DisguiseStatePayload {
         supported: is_supported(),
@@ -52,8 +49,6 @@ pub fn get_state(app: &AppHandle) -> DisguiseStatePayload {
 }
 
 pub fn apply_disguise(app: &AppHandle, name: String) -> Result<(), String> {
-    eprintln!("[disguise] apply_disguise requested name={name}");
-
     if !is_supported() {
         return Err("Disguise mode is only supported on Windows in this version.".into());
     }
@@ -67,7 +62,6 @@ pub fn apply_disguise(app: &AppHandle, name: String) -> Result<(), String> {
 }
 
 pub fn reset_disguise(app: &AppHandle) -> Result<(), String> {
-    eprintln!("[disguise] reset_disguise");
     persist_name(app, None)?;
     set_runtime_name(app, None);
     apply_identity(app);
@@ -75,17 +69,11 @@ pub fn reset_disguise(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn clear_disguise_on_quit(app: &AppHandle) {
-    eprintln!("[disguise] clear_disguise_on_quit");
     let _ = persist_name(app, None);
     set_runtime_name(app, None);
 }
 
 pub fn open_disguise_window(app: &AppHandle) -> Result<(), String> {
-    eprintln!(
-        "[disguise] open_disguise_window supported={}",
-        is_supported()
-    );
-
     if !is_supported() {
         return Ok(());
     }
@@ -100,12 +88,10 @@ pub fn open_disguise_window(app: &AppHandle) -> Result<(), String> {
     // Tell the frontend to refresh the app list
     let _ = window.emit("refresh-apps", ());
 
-    eprintln!("[disguise] disguise window shown");
     Ok(())
 }
 
 pub fn list_running_apps() -> Vec<String> {
-    eprintln!("[disguise] list_running_apps called");
     #[cfg(target_os = "windows")]
     {
         list_windows_apps()
@@ -133,7 +119,9 @@ fn set_runtime_name(app: &AppHandle, name: Option<String>) {
 
 fn apply_identity(app: &AppHandle) {
     let name = current_app_name(app);
-    eprintln!("[disguise] apply_identity name={name}");
+
+    #[cfg(target_os = "windows")]
+    set_process_app_user_model_id(&name);
 
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_title(&name);
@@ -200,11 +188,14 @@ fn list_windows_apps() -> Vec<String> {
             return BOOL(1);
         }
 
-        if let Ok(owner) = GetWindow(hwnd, GW_OWNER) {
-            if !owner.0.is_null() {
-                return BOOL(1);
-            }
-        } else {
+        // `GetWindow(..., GW_OWNER)` returns a null HWND when there is no owner.
+        // In `windows` crate that null can surface as `Err` (with last-error 0),
+        // so treat errors here as "no owner" instead of dropping the window.
+        let has_owner = match GetWindow(hwnd, GW_OWNER) {
+            Ok(owner) => !owner.0.is_null(),
+            Err(_) => false,
+        };
+        if has_owner {
             return BOOL(1);
         }
 
@@ -245,12 +236,15 @@ fn list_windows_apps() -> Vec<String> {
             return BOOL(1);
         };
 
-        let name = stem.to_string_lossy().trim().to_string();
-        if name.is_empty() || is_noise_process(&name) {
+        let exe_stem = stem.to_string_lossy().trim().to_string();
+        if exe_stem.is_empty() || is_noise_process(&exe_stem) {
             return BOOL(1);
         }
 
-        apps.entry(name.to_ascii_lowercase()).or_insert(name);
+        let display_name =
+            friendly_process_name(&exe_path, &exe_stem).unwrap_or_else(|| exe_stem.clone());
+        apps.entry(display_name.to_ascii_lowercase())
+            .or_insert(display_name);
         BOOL(1)
     }
 
@@ -263,7 +257,6 @@ fn list_windows_apps() -> Vec<String> {
 
     let mut values: Vec<String> = apps.into_values().collect();
     values.sort_by_key(|name| name.to_ascii_lowercase());
-    eprintln!("[disguise] list_windows_apps found {} apps", values.len());
     values
 }
 
@@ -285,4 +278,175 @@ fn is_noise_process(name: &str) -> bool {
     ]
     .iter()
     .any(|blocked| blocked.eq_ignore_ascii_case(name))
+}
+
+#[cfg(target_os = "windows")]
+fn friendly_process_name(exe_path: &str, exe_stem: &str) -> Option<String> {
+    file_version_value(exe_path, "FileDescription")
+        .or_else(|| file_version_value(exe_path, "ProductName"))
+        .or_else(|| prettify_stem(exe_stem))
+}
+
+#[cfg(target_os = "windows")]
+fn file_version_value(exe_path: &str, key: &str) -> Option<String> {
+    use std::{ffi::c_void, ptr};
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::{
+        GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
+    };
+
+    let path_w = to_wide_null(exe_path);
+    let size = unsafe { GetFileVersionInfoSizeW(PCWSTR(path_w.as_ptr()), None) };
+    if size == 0 {
+        return None;
+    }
+
+    let mut data = vec![0u8; size as usize];
+    if unsafe {
+        GetFileVersionInfoW(
+            PCWSTR(path_w.as_ptr()),
+            None,
+            size,
+            data.as_mut_ptr() as *mut c_void,
+        )
+    }
+    .is_err()
+    {
+        return None;
+    }
+
+    let mut translations = version_translations(&data);
+    translations.push((0x0409, 0x04B0));
+    translations.push((0x0000, 0x04B0));
+
+    for (lang, codepage) in translations {
+        let query = format!("\\StringFileInfo\\{lang:04x}{codepage:04x}\\{key}");
+        let query_w = to_wide_null(&query);
+        let mut value_ptr: *mut c_void = ptr::null_mut();
+        let mut value_len = 0u32;
+        let found = unsafe {
+            VerQueryValueW(
+                data.as_ptr() as *const c_void,
+                PCWSTR(query_w.as_ptr()),
+                &mut value_ptr,
+                &mut value_len,
+            )
+            .as_bool()
+        };
+
+        if !found || value_ptr.is_null() || value_len == 0 {
+            continue;
+        }
+
+        let value = unsafe {
+            let slice = std::slice::from_raw_parts(value_ptr as *const u16, value_len as usize);
+            String::from_utf16_lossy(slice)
+        };
+        let normalized = value.trim_matches('\0').trim();
+        if !normalized.is_empty() {
+            return Some(normalized.to_string());
+        }
+    }
+
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn version_translations(data: &[u8]) -> Vec<(u16, u16)> {
+    use std::{ffi::c_void, ptr};
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::VerQueryValueW;
+
+    let query_w = to_wide_null("\\VarFileInfo\\Translation");
+    let mut trans_ptr: *mut c_void = ptr::null_mut();
+    let mut trans_len = 0u32;
+
+    let found = unsafe {
+        VerQueryValueW(
+            data.as_ptr() as *const c_void,
+            PCWSTR(query_w.as_ptr()),
+            &mut trans_ptr,
+            &mut trans_len,
+        )
+        .as_bool()
+    };
+
+    if !found || trans_ptr.is_null() || trans_len < 4 {
+        return Vec::new();
+    }
+
+    let count = (trans_len as usize) / 4;
+    let words = unsafe { std::slice::from_raw_parts(trans_ptr as *const u16, count * 2) };
+
+    let mut pairs = Vec::with_capacity(count);
+    for chunk in words.chunks_exact(2) {
+        pairs.push((chunk[0], chunk[1]));
+    }
+
+    pairs.sort_unstable();
+    pairs.dedup();
+    pairs
+}
+
+#[cfg(target_os = "windows")]
+fn prettify_stem(stem: &str) -> Option<String> {
+    let cleaned = stem.trim();
+    if cleaned.is_empty() {
+        return None;
+    }
+
+    let words: Vec<String> = cleaned
+        .split(|c: char| c == '-' || c == '_' || c.is_whitespace())
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => format!("{}{}", first.to_ascii_uppercase(), chars.as_str()),
+                None => String::new(),
+            }
+        })
+        .collect();
+
+    if words.is_empty() {
+        None
+    } else {
+        Some(words.join(" "))
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn set_process_app_user_model_id(name: &str) {
+    use windows::core::HSTRING;
+    use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
+
+    let mut slug = String::new();
+    let mut last_was_dot = false;
+
+    for ch in name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch.to_ascii_lowercase());
+            last_was_dot = false;
+        } else if !last_was_dot {
+            slug.push('.');
+            last_was_dot = true;
+        }
+    }
+
+    let slug = slug.trim_matches('.').to_string();
+    let slug = if slug.is_empty() {
+        "insomniapp".to_string()
+    } else {
+        slug
+    };
+
+    let app_id = format!("com.insomniapp.{slug}");
+    let _ = unsafe { SetCurrentProcessExplicitAppUserModelID(&HSTRING::from(app_id)) };
+}
+
+#[cfg(target_os = "windows")]
+fn to_wide_null(value: &str) -> Vec<u16> {
+    OsStr::new(value)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }

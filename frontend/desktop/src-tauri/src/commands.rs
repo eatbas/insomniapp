@@ -59,7 +59,3 @@ pub fn reset_disguise(app: AppHandle) -> Result<(), String> {
     disguise::reset_disguise(&app)
 }
 
-#[tauri::command]
-pub fn debug_log(message: String) {
-    eprintln!("[ui-debug] {message}");
-}
