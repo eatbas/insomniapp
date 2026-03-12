@@ -1,8 +1,6 @@
 mod commands;
 mod disguise;
-mod idle;
 mod keepawake;
-mod meeting;
 mod platform;
 mod state;
 mod tray;

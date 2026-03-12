@@ -1,22 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useTheme } from "../contexts/ThemeContext";
 import type { DisguiseState } from "../types";
 
+type UiStatus = "loading" | "idle" | "busy";
+
 export default function DisguiseWindow() {
   const { isDark } = useTheme();
   const [apps, setApps] = useState<string[]>([]);
   const [selected, setSelected] = useState<string>("");
-  const [state, setState] = useState<DisguiseState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const [disguise, setDisguise] = useState<DisguiseState | null>(null);
+  const [status, setStatus] = useState<UiStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 
   const loadApps = useCallback(async () => {
     setError(null);
-    setLoading(true);
+    setStatus("loading");
 
     try {
       const [disguiseState, runningApps] = await Promise.all([
@@ -24,7 +25,7 @@ export default function DisguiseWindow() {
         invoke<string[]>("list_running_apps"),
       ]);
 
-      setState(disguiseState);
+      setDisguise(disguiseState);
       setApps(runningApps);
 
       if (runningApps.length === 0) {
@@ -35,50 +36,49 @@ export default function DisguiseWindow() {
     } catch {
       setError("Failed to load running apps. Please try Refresh.");
     } finally {
-      setLoading(false);
+      setStatus("idle");
     }
   }, [selected]);
 
   useEffect(() => {
     void loadApps();
 
-    // Reload apps each time the window is shown via the disguise button
     const unlisten = listen("refresh-apps", () => {
       void loadApps();
     });
     return () => { void unlisten.then((f) => f()); };
   }, [loadApps]);
 
-  const canApply = useMemo(() => {
-    return Boolean(selected) && !busy && !loading && state?.supported;
-  }, [busy, loading, selected, state?.supported]);
+  const loading = status === "loading";
+  const busy = status !== "idle";
+  const canApply = Boolean(selected) && status === "idle" && disguise?.supported;
 
   const apply = async () => {
     if (!canApply) return;
 
-    setBusy(true);
+    setStatus("busy");
     setError(null);
 
     try {
       await invoke("apply_disguise", { name: selected });
       await relaunch();
     } catch {
-      setBusy(false);
+      setStatus("idle");
       setError("Failed to apply disguise name.");
     }
   };
 
   const reset = async () => {
-    if (busy) return;
+    if (status !== "idle") return;
 
-    setBusy(true);
+    setStatus("busy");
     setError(null);
 
     try {
       await invoke("reset_disguise");
       await relaunch();
     } catch {
-      setBusy(false);
+      setStatus("idle");
       setError("Failed to reset disguise name.");
     }
   };
@@ -93,7 +93,7 @@ export default function DisguiseWindow() {
 
   const mutedClass = isDark ? "text-gray-400" : "text-gray-500";
 
-  if (state && !state.supported) {
+  if (disguise && !disguise.supported) {
     return (
       <div className={containerClass}>
         <div className={cardClass + " p-3 text-xs"}>
@@ -110,7 +110,7 @@ export default function DisguiseWindow() {
         <h1 className="text-sm font-semibold">Disguise Mode</h1>
         <button
           onClick={() => void loadApps()}
-          disabled={loading || busy}
+          disabled={busy}
           className={`px-2 py-1 text-[11px] rounded transition-colors ${
             isDark
               ? "bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50"
@@ -125,9 +125,9 @@ export default function DisguiseWindow() {
         Don&apos;t see your app? Open the application, then refresh.
       </p>
 
-      {state && (
+      {disguise && (
         <p className={`text-[11px] mb-2 ${mutedClass}`}>
-          Current name: <span className="font-semibold">{state.currentName}</span>
+          Current name: <span className="font-semibold">{disguise.currentName}</span>
         </p>
       )}
 

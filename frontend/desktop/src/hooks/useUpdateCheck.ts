@@ -3,23 +3,27 @@ import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-const FOUR_HOURS = 4 * 60 * 60 * 1000;
-const COOLDOWN = 5 * 60 * 1000;
+const CHECK_INTERVAL = 4 * 60 * 60 * 1000;
+const CHECK_COOLDOWN = 5 * 60 * 1000;
+
+interface UpdateState {
+  lastCheck: number;
+  installing: boolean;
+  attemptedVersion: string | null;
+}
 
 export function useUpdateCheck() {
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
-  const lastCheckRef = useRef(0);
-  const installingRef = useRef(false);
-  const attemptedVersionRef = useRef<string | null>(null);
+  const ref = useRef<UpdateState>({ lastCheck: 0, installing: false, attemptedVersion: null });
 
   useEffect(() => {
     const installUpdate = (update: Update) => {
-      if (installingRef.current) return;
-      if (attemptedVersionRef.current === update.version) return;
+      const s = ref.current;
+      if (s.installing || s.attemptedVersion === update.version) return;
 
-      installingRef.current = true;
-      attemptedVersionRef.current = update.version;
+      s.installing = true;
+      s.attemptedVersion = update.version;
       setUpdateVersion(update.version);
       setInstalling(true);
 
@@ -27,18 +31,19 @@ export function useUpdateCheck() {
         .downloadAndInstall()
         .then(() => relaunch())
         .catch(() => {
-          installingRef.current = false;
-          attemptedVersionRef.current = null;
+          s.installing = false;
+          s.attemptedVersion = null;
           setInstalling(false);
         });
     };
 
     const runCheck = () => {
-      if (installingRef.current) return;
+      const s = ref.current;
+      if (s.installing) return;
 
       const now = Date.now();
-      if (now - lastCheckRef.current < COOLDOWN) return;
-      lastCheckRef.current = now;
+      if (now - s.lastCheck < CHECK_COOLDOWN) return;
+      s.lastCheck = now;
 
       check()
         .then((u) => {
@@ -47,13 +52,10 @@ export function useUpdateCheck() {
         .catch(() => {});
     };
 
-    // Check on mount
     runCheck();
 
-    // Check every 4 hours
-    const interval = setInterval(runCheck, FOUR_HOURS);
+    const interval = setInterval(runCheck, CHECK_INTERVAL);
 
-    // Check when window gains focus (user opens from tray)
     const unlisten = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
       if (focused) runCheck();
     });

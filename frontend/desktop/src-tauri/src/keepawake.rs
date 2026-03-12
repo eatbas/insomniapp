@@ -2,29 +2,31 @@ use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::time::{interval, Duration};
 
-use crate::idle;
-use crate::meeting;
 use crate::platform;
 use crate::state::AppState;
 
+const CHECK_INTERVAL_SECS: u64 = 3;
+const USER_ACTIVITY_GRACE_SECS: u64 = 5;
+
 pub fn start_engine(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        let mut check_interval = interval(Duration::from_secs(3));
+        let mut check_interval = interval(Duration::from_secs(CHECK_INTERVAL_SECS));
         let mut last_simulate = std::time::Instant::now();
         let mut real_idle_start: Option<std::time::Instant> = None;
 
         loop {
             check_interval.tick().await;
 
-            let os_idle_secs = idle::get_idle_seconds();
-            let in_meeting = meeting::is_in_meeting();
+            let os_idle_secs = platform::get_idle_seconds();
+            let in_meeting = platform::is_mic_active() || platform::is_camera_active();
             let is_session_locked = platform::is_session_locked();
             let is_display_on = platform::is_display_on();
 
             // Detect genuine user input: OS idle is low AND we didn't just simulate.
             // Grace period (5s) > check interval (3s) to avoid false positives
             // from our own F15 simulation resetting the OS idle timer.
-            let user_became_active = os_idle_secs < 5 && last_simulate.elapsed().as_secs() > 5;
+            let user_became_active = os_idle_secs < USER_ACTIVITY_GRACE_SECS
+                && last_simulate.elapsed().as_secs() > USER_ACTIVITY_GRACE_SECS;
 
             if user_became_active {
                 real_idle_start = None;

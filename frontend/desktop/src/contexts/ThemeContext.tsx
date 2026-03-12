@@ -14,9 +14,24 @@ const ThemeContext = createContext<ThemeContextValue>({
   isDark: true,
 });
 
+const THEME_KEY = "insomniapp-theme";
+
+function getStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {}
+  return "dark";
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+  const [theme, setTheme] = useState<Theme>(getStoredTheme);
+  const toggleTheme = () =>
+    setTheme((t) => {
+      const next = t === "dark" ? "light" : "dark";
+      try { localStorage.setItem(THEME_KEY, next); } catch {}
+      return next;
+    });
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, isDark: theme === "dark" }}>
