@@ -1,5 +1,6 @@
 services:
-  web:
+  insomniapp-web:
+    image: insomniapp-web
     build:
       context: ./frontend/web
       dockerfile: Dockerfile
