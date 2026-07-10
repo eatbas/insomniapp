@@ -15,8 +15,6 @@ use windows::Win32::System::SystemInformation::GetTickCount;
 use windows::Win32::UI::WindowsAndMessaging::{
     DEVICE_NOTIFY_CALLBACK, PBT_POWERSETTINGCHANGE,
 };
-use winreg::enums::HKEY_CURRENT_USER;
-use winreg::RegKey;
 
 static DISPLAY_MONITOR_INIT: Once = Once::new();
 static DISPLAY_ON: AtomicBool = AtomicBool::new(true);
@@ -35,14 +33,6 @@ pub fn get_idle_seconds() -> u64 {
             0
         }
     }
-}
-
-pub fn is_mic_active() -> bool {
-    check_device_active("microphone")
-}
-
-pub fn is_camera_active() -> bool {
-    check_device_active("webcam")
 }
 
 pub fn init_display_state_monitor() {
@@ -111,41 +101,4 @@ unsafe extern "system" fn display_power_callback(
     let display_state = std::ptr::read_unaligned(power_setting.Data.as_ptr() as *const u32);
     DISPLAY_ON.store(display_state != 0, Ordering::Relaxed);
     0
-}
-
-fn check_device_active(device: &str) -> bool {
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let base_path = format!(
-        "Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\{}",
-        device
-    );
-
-    // Check NonPackaged apps (regular desktop apps)
-    if let Ok(non_packaged) = hkcu.open_subkey(format!("{}\\NonPackaged", base_path)) {
-        for key_name in non_packaged.enum_keys().filter_map(|k| k.ok()) {
-            if let Ok(app_key) = non_packaged.open_subkey(&key_name) {
-                let stop_time: u64 = app_key.get_value("LastUsedTimeStop").unwrap_or(1);
-                if stop_time == 0 {
-                    return true;
-                }
-            }
-        }
-    }
-
-    // Check packaged (UWP/Store) apps
-    if let Ok(base) = hkcu.open_subkey(&base_path) {
-        for key_name in base.enum_keys().filter_map(|k| k.ok()) {
-            if key_name == "NonPackaged" {
-                continue;
-            }
-            if let Ok(app_key) = base.open_subkey(&key_name) {
-                let stop_time: u64 = app_key.get_value("LastUsedTimeStop").unwrap_or(1);
-                if stop_time == 0 {
-                    return true;
-                }
-            }
-        }
-    }
-
-    false
 }

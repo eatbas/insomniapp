@@ -36,10 +36,6 @@ export default function StatusPanel({ status, appName, disguiseSupported }: Prop
     label = "Paused (Screen Off)";
     dotColor = "bg-yellow-400";
     textColor = "text-yellow-400";
-  } else if (status.isInMeeting) {
-    label = "Paused";
-    dotColor = "bg-yellow-400";
-    textColor = "text-yellow-400";
   } else if (status.isSimulating) {
     label = "Active";
     dotColor = "bg-green-400 animate-pulse";

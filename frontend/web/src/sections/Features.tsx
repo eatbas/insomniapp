@@ -1,6 +1,5 @@
 import {
   Shield,
-  Video,
   MonitorSmartphone,
   Timer,
   Settings,
@@ -18,13 +17,6 @@ const features = [
     accent: 'green',
   },
   {
-    icon: <Video className="w-6 h-6" />,
-    title: 'Meeting Detection',
-    description:
-      'Automatically detects active microphone and camera usage. Pauses all activity simulation during meetings — no interference with video calls or screen shares.',
-    accent: 'yellow',
-  },
-  {
     icon: <MonitorSmartphone className="w-6 h-6" />,
     title: 'System Tray Integration',
     description:
@@ -35,7 +27,7 @@ const features = [
     icon: <Timer className="w-6 h-6" />,
     title: 'Real-Time Status',
     description:
-      'Four color-coded states (Disabled, In Meeting, Monitoring, Active) with a live idle timer display and visual progress bar.',
+      'Four color-coded states (Disabled, Paused, Monitoring, Active) with a live idle timer display and visual progress bar.',
     accent: 'primary',
   },
   {
@@ -61,7 +53,7 @@ export function Features() {
         <SectionHeading
           badge="Features"
           title="Everything You Need to Stay Active"
-          description="Designed to be invisible. insomniAPP works silently in the background with smart detection and zero interference."
+          description="Designed to be invisible. insomniAPP works silently in the background with smart idle detection and zero interference."
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature) => (

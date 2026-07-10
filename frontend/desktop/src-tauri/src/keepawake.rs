@@ -18,7 +18,6 @@ pub fn start_engine(app: AppHandle) {
             check_interval.tick().await;
 
             let os_idle_secs = platform::get_idle_seconds();
-            let in_meeting = platform::is_mic_active() || platform::is_camera_active();
             let is_session_locked = platform::is_session_locked();
             let is_display_on = platform::is_display_on();
 
@@ -43,7 +42,6 @@ pub fn start_engine(app: AppHandle) {
                 let mut status = state.status.lock().unwrap();
                 status.idle_seconds = effective_idle_secs;
                 status.is_idle = effective_idle_secs >= status.idle_threshold_secs;
-                status.is_in_meeting = in_meeting;
                 status.is_session_locked = is_session_locked;
                 status.is_display_off = !is_display_on;
 
@@ -61,14 +59,12 @@ pub fn start_engine(app: AppHandle) {
 
                 let should = status.enabled
                     && status.is_idle
-                    && !status.is_in_meeting
                     && !status.is_session_locked
                     && !status.is_display_off
                     && last_simulate.elapsed().as_secs() >= status.simulation_interval_secs;
 
                 status.is_simulating = status.enabled
                     && status.is_idle
-                    && !status.is_in_meeting
                     && !status.is_session_locked
                     && !status.is_display_off;
                 should

@@ -8,8 +8,6 @@ A lightweight desktop application that keeps your computer awake by simulating a
 
 insomniAPP prevents your computer from locking the screen, going to sleep, or showing you as "Away" in chat applications. It monitors your system's idle time and, when you've been inactive long enough, silently presses the **F15 key** at regular intervals to keep the system awake — a key that is virtually never mapped to anything, so it won't interfere with your work.
 
-The app is smart enough to **automatically pause when you're in a meeting** (microphone or camera active), so it won't fight with video calls or screen shares.
-
 ---
 
 ## Features
@@ -19,12 +17,6 @@ The app is smart enough to **automatically pause when you're in a meeting** (mic
 - Simulates the F15 key press at configurable intervals to prevent sleep/lock
 - Distinguishes between real user inactivity and its own simulated input using a grace-period algorithm
 - Tracks actual idle duration accurately, even while simulating activity
-
-### Meeting Detection
-- Automatically detects active microphone and camera usage
-- Pauses all activity simulation during meetings — no interference with calls
-- **Windows**: Reads the Windows Registry (`CapabilityAccessManager`) to check mic/webcam consent status
-- **macOS**: Uses `pgrep` for camera processes (`VDCAssistant`, `AppleCameraAssistant`) and `ioreg` for audio input state
 
 ### System Tray Integration
 - Lives in the system tray for an unobtrusive experience
@@ -43,7 +35,7 @@ Four distinct states with color-coded indicators:
 | Status | Color | Meaning |
 |---|---|---|
 | **Disabled** | Gray | App is toggled off |
-| **Paused** | Yellow | In a meeting (mic/camera active) |
+| **Paused** | Yellow | Screen locked or display turned off |
 | **Monitoring** | Blue | Watching idle time, not yet simulating |
 | **Active** | Green (pulsing) | Currently simulating activity |
 
@@ -86,7 +78,6 @@ Settings are applied in real-time with a 500ms debounce — no restart needed.
 │  ┌─────┴─────────────────────────┐  │
 │  │   Platform Layer (Windows/Mac)│  │
 │  │  - Idle Detection             │  │
-│  │  - Meeting Detection          │  │
 │  │  - Input Simulation (F15)     │  │
 │  └───────────────────────────────┘  │
 └─────────────────────────────────────┘
@@ -97,21 +88,19 @@ Settings are applied in real-time with a 500ms debounce — no restart needed.
 1. **Read OS idle time** — calls platform-specific APIs to get seconds since last real user input
 2. **Detect genuine activity** — if OS idle is under 5 seconds AND at least 5 seconds have passed since the last F15 simulation, the user is genuinely active (this grace period prevents the app from being fooled by its own key presses)
 3. **Calculate effective idle time** — uses tracked idle time once the threshold is crossed, ensuring accurate duration even while simulating
-4. **Check meeting status** — queries mic and camera state through native APIs
-5. **Decide whether to simulate** — only simulates when: app is enabled AND user is idle AND not in a meeting AND enough time has passed since the last simulation
-6. **Simulate F15** — presses the F15 key if all conditions are met
-7. **Emit status update** — sends the current state to the frontend via Tauri events
+4. **Decide whether to simulate** — only simulates when: app is enabled AND user is idle AND enough time has passed since the last simulation
+5. **Simulate F15** — presses the F15 key if all conditions are met
+6. **Emit status update** — sends the current state to the frontend via Tauri events
 
 ### Platform-Specific Implementations
 
 **Windows**
 - **Idle Detection**: `GetLastInputInfo` + `GetTickCount` Win32 APIs
-- **Meeting Detection**: Windows Registry `CapabilityAccessManager\ConsentStore` — checks `LastUsedTimeStop` values for microphone and webcam across both packaged (UWP) and non-packaged (desktop) applications
+- **Session/Display State**: Win32 desktop and power-notification APIs to pause while the screen is locked or the display is off
 - **Input Simulation**: `enigo` crate with F15 key
 
 **macOS**
 - **Idle Detection**: `CGEventSourceSecondsSinceLastEventType` from CoreGraphics
-- **Meeting Detection**: `pgrep` for `VDCAssistant` / `AppleCameraAssistant` (camera) and `ioreg` for `AppleHDAEngineInput` (microphone)
 - **Input Simulation**: `enigo` crate with F15 key
 
 ---
@@ -122,9 +111,9 @@ Settings are applied in real-time with a 500ms debounce — no restart needed.
 | Technology | Version | Purpose |
 |---|---|---|
 | **React** | 19 | UI framework |
-| **TypeScript** | 5.9 | Type-safe JavaScript |
+| **TypeScript** | 6 | Type-safe JavaScript |
 | **Tailwind CSS** | 4 | Utility-first styling |
-| **Vite** | 7 | Build tool and dev server |
+| **Vite** | 8 | Build tool and dev server |
 | **@tauri-apps/api** | 2 | Frontend-to-backend communication |
 
 ### Backend
@@ -136,9 +125,7 @@ Settings are applied in real-time with a 500ms debounce — no restart needed.
 | **tokio** | 1 | Async runtime for the engine loop |
 | **serde** | 1 | Serialization between frontend and backend |
 | **windows** | 0.62 | Windows API bindings |
-| **winreg** | 0.55 | Windows Registry access |
 | **core-foundation** | 0.10 | macOS native APIs |
-| **coreaudio-sys** | 0.2 | macOS audio system APIs |
 
 ---
 
@@ -154,7 +141,6 @@ insomniapp/
 │   ├── components/
 │   │   ├── StatusPanel.tsx           # Logo, status indicator, theme toggle, enable/disable button
 │   │   ├── IdleTimer.tsx             # Idle time display with progress bar
-│   │   ├── MeetingIndicator.tsx      # Meeting status (mic/camera active)
 │   │   └── SettingsForm.tsx          # Idle threshold and interval inputs
 │   ├── contexts/
 │   │   └── ThemeContext.tsx           # Dark/Light theme state
@@ -169,12 +155,11 @@ insomniapp/
 │   │   ├── state.rs                  # AppStatus struct and thread-safe AppState
 │   │   ├── keepawake.rs              # Core engine loop (idle detection + F15 simulation)
 │   │   ├── idle.rs                   # Platform-agnostic idle detection wrapper
-│   │   ├── meeting.rs                # Platform-agnostic meeting detection wrapper
 │   │   ├── tray.rs                   # System tray setup and event handling
 │   │   └── platform/
 │   │       ├── mod.rs                # Platform module router
-│   │       ├── windows.rs            # Windows: GetLastInputInfo, Registry-based mic/camera
-│   │       └── macos.rs              # macOS: CGEventSource, pgrep/ioreg-based detection
+│   │       ├── windows.rs            # Windows: GetLastInputInfo, session/display state
+│   │       └── macos.rs              # macOS: CGEventSource idle detection
 │   ├── Cargo.toml                    # Rust dependencies
 │   ├── tauri.conf.json               # Tauri app configuration
 │   └── icons/                        # App icons (PNG, ICO, ICNS)
@@ -192,7 +177,7 @@ insomniapp/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18+)
+- [Node.js](https://nodejs.org/) (^20.19.0 or >=22.12.0)
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
 - [Tauri CLI prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
 
@@ -242,7 +227,8 @@ interface AppStatus {
   enabled: boolean;              // Whether the app is active
   isIdle: boolean;               // Whether the user is considered idle
   idleSeconds: number;           // Current idle time in seconds
-  isInMeeting: boolean;          // Whether a meeting is detected (mic/camera)
+  isSessionLocked: boolean;      // Whether the session is locked (pauses simulation)
+  isDisplayOff: boolean;         // Whether the display is off (pauses simulation)
   isSimulating: boolean;         // Whether the app is actively simulating input
   idleThresholdSecs: number;     // Configured idle threshold
   simulationIntervalSecs: number; // Configured simulation interval

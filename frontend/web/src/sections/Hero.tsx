@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Download, Github, ChevronDown } from 'lucide-react'
+import { Download, ChevronDown } from 'lucide-react'
+import { GitHubIcon } from '../components/GitHubIcon'
 
 export function Hero() {
   const [version, setVersion] = useState('')
@@ -66,8 +67,7 @@ export function Hero() {
         {/* Subheading */}
         <p className="text-xl md:text-2xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
           A lightweight desktop app that prevents sleep, screen lock, and away status
-          — by silently pressing F15 when you're idle.{' '}
-          <span className="text-slate-300">Smart enough to pause during meetings.</span>
+          — by silently pressing F15 when you're idle.
         </p>
 
         {/* CTA buttons */}
@@ -85,7 +85,7 @@ export function Hero() {
             rel="noopener noreferrer"
             className="group flex items-center gap-2 px-8 py-4 rounded-xl glass glass-hover font-semibold transition-all duration-300 hover:-translate-y-0.5"
           >
-            <Github className="w-5 h-5" />
+            <GitHubIcon className="w-5 h-5" />
             View on GitHub
           </a>
         </div>
@@ -96,7 +96,7 @@ export function Hero() {
           <div className="flex justify-center gap-6">
             {[
               { color: 'bg-accent-gray', label: 'Disabled' },
-              { color: 'bg-accent-yellow', label: 'In Meeting' },
+              { color: 'bg-accent-yellow', label: 'Paused' },
               { color: 'bg-accent-blue', label: 'Monitoring' },
               { color: 'bg-accent-green animate-pulse', label: 'Active' },
             ].map(({ color, label }) => (

@@ -25,3 +25,11 @@ Thumbs.db
 frontend/desktop/src-tauri/gen/
 *.key
 *.key.pub
+
+# Generated planning/review artefacts
+plan_request_*.md
+plan_review_*.md
+review_request_*.md
+
+# TypeScript incremental build info
+*.tsbuildinfo

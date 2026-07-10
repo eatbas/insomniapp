@@ -2,7 +2,6 @@ export interface AppStatus {
   enabled: boolean;
   isIdle: boolean;
   idleSeconds: number;
-  isInMeeting: boolean;
   isSessionLocked: boolean;
   isDisplayOff: boolean;
   isSimulating: boolean;

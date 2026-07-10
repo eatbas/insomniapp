@@ -9,6 +9,11 @@ pub use self::windows::*;
 pub use self::macos::*;
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub fn get_idle_seconds() -> u64 {
+    0
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn is_session_locked() -> bool {
     false
 }

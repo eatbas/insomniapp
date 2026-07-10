@@ -4,7 +4,6 @@ import { useDisguiseState } from "./hooks/useDisguiseState";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import StatusPanel from "./components/StatusPanel";
 import IdleTimer from "./components/IdleTimer";
-import MeetingIndicator from "./components/MeetingIndicator";
 import SettingsForm from "./components/SettingsForm";
 
 function AppContent() {
@@ -30,7 +29,6 @@ function AppContent() {
       />
       <div className="flex items-center gap-1.5">
         <IdleTimer status={status} />
-        <MeetingIndicator status={status} />
       </div>
       <SettingsForm status={status} />
       {installing && (
