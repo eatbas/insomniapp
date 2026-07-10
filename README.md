@@ -131,44 +131,60 @@ Settings are applied in real-time with a 500ms debounce — no restart needed.
 
 ## Project Structure
 
+Each Rust module is split into the logic it owns and the adapter that talks to
+the operating system or to Tauri. The logic is pure and unit-tested; the adapter
+is a thin wrapper that cannot run without a real windowing system.
+
 ```
 insomniapp/
-├── src/                              # React Frontend
-│   ├── main.tsx                      # App entry point
-│   ├── App.tsx                       # Root component
-│   ├── types.ts                      # TypeScript interfaces (AppStatus)
-│   ├── styles.css                    # Tailwind CSS imports
-│   ├── components/
-│   │   ├── StatusPanel.tsx           # Logo, status indicator, theme toggle, enable/disable button
-│   │   ├── IdleTimer.tsx             # Idle time display with progress bar
-│   │   └── SettingsForm.tsx          # Idle threshold and interval inputs
-│   ├── contexts/
-│   │   └── ThemeContext.tsx           # Dark/Light theme state
-│   └── hooks/
-│       └── useAppState.ts            # Status polling and event listener
+├── frontend/
+│   ├── web/                              # Marketing site (React + Vite)
+│   │   ├── src/                          # Components, sections, and their *.test.tsx
+│   │   └── vitest.config.ts              # jsdom + V8 coverage, 100% thresholds
+│   │
+│   └── desktop/                          # Desktop app
+│       ├── src/                          # React frontend and its *.test.tsx
+│       │   ├── main.tsx                  # App entry point
+│       │   ├── App.tsx                   # Root component
+│       │   ├── types.ts                  # TypeScript interfaces (AppStatus)
+│       │   ├── components/               # StatusPanel, IdleTimer, SettingsForm, DisguiseWindow
+│       │   ├── contexts/                 # ThemeContext
+│       │   └── hooks/                    # useAppState, useDisguiseState, useUpdateCheck
+│       ├── vitest.config.ts              # jsdom + V8 coverage, 100% thresholds
+│       │
+│       └── src-tauri/                    # Rust backend
+│           ├── .cargo/config.toml        # `cargo coverage` alias (exclusion list)
+│           ├── src/
+│           │   ├── main.rs               # Process entry point                 [adapter]
+│           │   ├── lib.rs                # Tauri builder wiring                [adapter]
+│           │   ├── commands.rs           # Tauri IPC command wrappers          [adapter]
+│           │   ├── state.rs              # AppStatus, AppState, settings rules
+│           │   ├── keepawake/
+│           │   │   ├── engine.rs         # Pure tick decision procedure
+│           │   │   └── mod.rs            # Async loop, F15 simulation          [adapter]
+│           │   ├── tray/
+│           │   │   ├── layout.rs         # Pure window placement
+│           │   │   └── mod.rs            # Tray icon and menu                  [adapter]
+│           │   ├── disguise/
+│           │   │   ├── name.rs           # Sanitising, persistence format, AppUserModelID
+│           │   │   ├── store.rs          # Reading/writing the state file
+│           │   │   ├── process_name.rs   # Windows process-name helpers
+│           │   │   ├── enumerate.rs      # Win32 EnumWindows                   [adapter]
+│           │   │   └── mod.rs            # AppHandle glue                      [adapter]
+│           │   └── platform/
+│           │       ├── mod.rs            # Per-OS router
+│           │       ├── convert.rs        # Pure idle/display-state conversions
+│           │       ├── fallback.rs       # Shims for other targets
+│           │       ├── windows.rs        # GetLastInputInfo, desktop, power    [adapter]
+│           │       └── macos.rs          # CGEventSource idle detection        [adapter]
+│           ├── Cargo.toml                # Rust dependencies
+│           ├── tauri.conf.json           # Tauri app configuration
+│           └── icons/                    # App icons (PNG, ICO, ICNS)
 │
-├── src-tauri/                        # Rust Backend
-│   ├── src/
-│   │   ├── main.rs                   # Application entry point
-│   │   ├── lib.rs                    # Tauri app setup, event handlers, tray initialization
-│   │   ├── commands.rs               # Tauri IPC commands (get_status, toggle, update_settings)
-│   │   ├── state.rs                  # AppStatus struct and thread-safe AppState
-│   │   ├── keepawake.rs              # Core engine loop (idle detection + F15 simulation)
-│   │   ├── idle.rs                   # Platform-agnostic idle detection wrapper
-│   │   ├── tray.rs                   # System tray setup and event handling
-│   │   └── platform/
-│   │       ├── mod.rs                # Platform module router
-│   │       ├── windows.rs            # Windows: GetLastInputInfo, session/display state
-│   │       └── macos.rs              # macOS: CGEventSource idle detection
-│   ├── Cargo.toml                    # Rust dependencies
-│   ├── tauri.conf.json               # Tauri app configuration
-│   └── icons/                        # App icons (PNG, ICO, ICNS)
-│
-├── package.json                      # Node.js dependencies and scripts
-├── vite.config.ts                    # Vite build configuration
-├── tsconfig.json                     # TypeScript configuration
-├── index.html                        # HTML template
-└── README.md                         # This file
+├── .github/workflows/
+│   ├── ci.yml                            # Tests and coverage gates
+│   └── release.yml                       # Signed installers
+└── README.md                             # This file
 ```
 
 ---
@@ -207,6 +223,117 @@ npm run tauri build
 ```
 
 The built application will be in `src-tauri/target/release/bundle/`.
+
+---
+
+## Testing and Coverage
+
+Every test command enforces a **100% coverage gate** and fails the build below it.
+The same gates run on every pull request in `.github/workflows/ci.yml`.
+
+### Frontend (Vitest + React Testing Library)
+
+Both React packages use Vitest with the V8 coverage provider and a `jsdom`
+environment, with thresholds of 100% for lines, statements, functions, and
+branches.
+
+```bash
+# Marketing site
+cd frontend/web
+npm ci
+npm run test            # watch mode
+npm run test:coverage   # single run, enforces the 100% gate
+
+# Desktop frontend (Tauri APIs are mocked in src/test/setup.ts)
+cd frontend/desktop
+npm ci
+npm run test:coverage
+```
+
+### Rust backend (cargo-llvm-cov)
+
+```bash
+cargo install cargo-llvm-cov --locked   # one-off
+rustup component add llvm-tools-preview # one-off
+
+cd frontend/desktop/src-tauri
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets --all-features
+cargo coverage --summary-only --fail-under-lines 100
+```
+
+`cargo coverage` is an alias defined in `src-tauri/.cargo/config.toml`. It pins
+the exclusion list below so contributors and CI measure exactly the same files.
+Running `cargo llvm-cov` directly, without that alias, measures the adapters too
+and will not reach 100%.
+
+> The Rust crate embeds the built frontend via `tauri::generate_context!`, so run
+> `npm run build` in `frontend/desktop` at least once before `cargo test`.
+
+### Inspecting HTML reports
+
+```bash
+# Frontend: writes coverage/index.html
+cd frontend/web && npm run test:coverage && open coverage/index.html
+
+# Rust: opens target/llvm-cov/html/index.html
+cd frontend/desktop/src-tauri && cargo coverage --html --open
+```
+
+CI also uploads every report as a build artefact (`coverage-web`,
+`coverage-desktop`, `coverage-rust-<os>`) so a failed gate can be diagnosed
+without reproducing it locally.
+
+### Running every gate locally
+
+```bash
+(cd frontend/web       && npm ci && npm run build && npm run test:coverage)
+(cd frontend/desktop   && npm ci && npm run build && npm run test:coverage)
+(cd frontend/desktop/src-tauri \
+   && cargo fmt --check \
+   && cargo clippy --all-targets --all-features -- -D warnings \
+   && cargo coverage --summary-only --fail-under-lines 100)
+```
+
+### What counts as an acceptable exclusion
+
+A file may be excluded from coverage **only** when every line in it is an
+irreducible adapter: a call into the operating system, the Tauri runtime, or the
+process bootstrap, with no decision of our own left in it. Before excluding
+anything, the logic must first be extracted into a module that *is* covered.
+
+Exclusion means "not subject to the 100% gate", not "untested". The OS adapters
+still carry smoke tests that call them for real; they are excluded because no
+single run can exercise both branches of, say, `is_session_locked`, whose answer
+depends on whether the host session is interactive.
+
+Platform-specific Rust code is covered on the platform that compiles it: the CI
+matrix runs the Rust gate on Linux, Windows, and macOS.
+
+Currently excluded, all pinned in `src-tauri/.cargo/config.toml`:
+
+| File | Why it cannot reach 100% | Logic extracted to | Smoke-tested |
+|---|---|---|---|
+| `main.rs`, `lib.rs` | Process entry point and Tauri builder wiring | — | no |
+| `commands.rs` | `#[tauri::command]` wrappers that only unlock state and delegate | `state.rs`, `disguise/` | payload contract |
+| `keepawake/mod.rs` | Unbounded async loop, clock, and `enigo` input simulation | `keepawake/engine.rs` | no |
+| `tray/mod.rs` | Tray icon, menu, and window APIs | `tray/layout.rs` | no |
+| `disguise/mod.rs` | `AppHandle` access to the data directory, window, and tray | `disguise/name.rs`, `disguise/store.rs` | no |
+| `disguise/enumerate.rs` | Win32 `EnumWindows`; result depends on which windows are open | `disguise/process_name.rs` | yes |
+| `platform/windows.rs` | `unsafe` Win32 idle, desktop, and power-notification calls | `platform/convert.rs` | yes |
+| `platform/macos.rs` | `unsafe` CoreGraphics FFI | `platform/convert.rs` | yes |
+
+Tauri's `tauri::test` mock runtime is deliberately **not** used. Constructing any
+mock `App` links `muda`, which imports `TaskDialogIndirect` from comctl32 v6.
+Only the bundled app gets an activation-context manifest selecting v6, so on
+Windows the `cargo test` harness aborts at load with `STATUS_ENTRYPOINT_NOT_FOUND`
+before any test runs, and Cargo's `rustc-link-arg-tests` cannot reach the lib's
+unit-test harness to fix it. `commands.rs` instead pins the one thing it owns
+outright — the camelCase `SettingsPayload` wire format.
+
+On the frontend, only test files, the test setup directory, and type-only
+declarations (`vite-env.d.ts`, `types.ts`) are excluded.
 
 ---
 
