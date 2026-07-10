@@ -14,21 +14,34 @@ export default function SettingsForm({ status }: Props) {
   const [version, setVersion] = useState("");
 
   useEffect(() => {
-    getVersion().then(setVersion);
+    // The version label is cosmetic, so a failure to resolve it leaves the
+    // label hidden rather than surfacing an error in a 78px window.
+    getVersion()
+      .then(setVersion)
+      .catch(() => setVersion(""));
+
+    return () => {
+      if (debounceRef.current !== null) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, []);
 
   const handleChange = (field: string, value: string) => {
     const num = parseInt(value, 10);
     if (isNaN(num) || num < 1) return;
 
-    if (debounceRef.current) {
+    if (debounceRef.current !== null) {
       clearTimeout(debounceRef.current);
     }
 
     debounceRef.current = window.setTimeout(() => {
+      debounceRef.current = null;
+      // The backend re-broadcasts the authoritative status every tick, so a
+      // rejected update needs no local rollback — only a handled rejection.
       invoke("update_settings", {
         settings: { [field]: num },
-      });
+      }).catch(() => undefined);
     }, 500);
   };
 

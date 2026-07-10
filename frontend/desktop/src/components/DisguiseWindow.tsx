@@ -53,9 +53,10 @@ export default function DisguiseWindow() {
   const busy = status !== "idle";
   const canApply = Boolean(selected) && status === "idle" && disguise?.supported;
 
+  // `apply` and `reset` are only ever invoked from buttons that are disabled
+  // whenever their preconditions (a valid selection while idle, and being idle
+  // respectively) do not hold, so no redundant in-handler guard is required.
   const apply = async () => {
-    if (!canApply) return;
-
     setStatus("busy");
     setError(null);
 
@@ -69,8 +70,6 @@ export default function DisguiseWindow() {
   };
 
   const reset = async () => {
-    if (status !== "idle") return;
-
     setStatus("busy");
     setError(null);
 
