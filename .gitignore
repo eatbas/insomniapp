@@ -33,3 +33,13 @@ review_request_*.md
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Test coverage output
+coverage/
+*.lcov
+lcov.info
+
+# Rust coverage output (cargo llvm-cov)
+*.profraw
+*.profdata
+llvm-cov-target/
