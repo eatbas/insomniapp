@@ -1,0 +1,23 @@
+[alias]
+# Single source of truth for the Rust coverage gate, shared by contributors and
+# CI so both measure exactly the same set of files.
+#
+# The ignored files are adapters with no logic of their own: the Tauri bootstrap
+# (`main.rs`, `lib.rs`), the IPC command wrappers (`commands.rs`), the tray,
+# disguise, and keep-awake adapters (`*/mod.rs`), the Win32 window enumeration
+# (`disguise/enumerate.rs`), and the `unsafe` OS wrappers (`platform/windows.rs`,
+# `platform/macos.rs`). None can reach 100% on a single host: they either need a
+# real windowing system, or their branches depend on the host session. The logic
+# they delegate to is covered at 100%, and the OS wrappers additionally carry
+# smoke tests. See the coverage policy in `README.md`.
+#
+# Usage:
+#   cargo coverage --summary-only --fail-under-lines 100
+#   cargo coverage --html --open
+coverage = [
+    "llvm-cov",
+    "--all-targets",
+    "--all-features",
+    "--ignore-filename-regex",
+    '(^|[/\\])(main|lib|commands)\.rs$|(^|[/\\])(keepawake|tray)[/\\]mod\.rs$|(^|[/\\])disguise[/\\](mod|enumerate)\.rs$|(^|[/\\])platform[/\\](windows|macos)\.rs$',
+]

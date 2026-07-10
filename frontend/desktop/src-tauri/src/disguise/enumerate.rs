@@ -1,7 +1,13 @@
-#[cfg(target_os = "windows")]
-use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
+//! Windows top-level window enumeration.
+//!
+//! Every function here wraps a Win32 call whose result depends on which windows
+//! happen to be open, so this file is excluded from the coverage gate; the pure
+//! logic it relies on lives in [`super::process_name`], which is covered. The
+//! smoke tests below still drive the real `EnumWindows` traversal and the real
+//! version-resource lookup. See the coverage policy in `README.md`.
 
-#[cfg(target_os = "windows")]
+use super::process_name::{is_noise_process, prettify_stem, to_wide_null, translation_pairs};
+
 pub fn list_windows_apps() -> Vec<String> {
     use std::collections::HashMap;
     use windows::core::{BOOL, PWSTR};
@@ -94,34 +100,12 @@ pub fn list_windows_apps() -> Vec<String> {
     values
 }
 
-#[cfg(target_os = "windows")]
-fn is_noise_process(name: &str) -> bool {
-    [
-        "ApplicationFrameHost",
-        "ShellExperienceHost",
-        "SearchHost",
-        "StartMenuExperienceHost",
-        "TextInputHost",
-        "RuntimeBroker",
-        "Widgets",
-        "dwm",
-        "sihost",
-        "ctfmon",
-        "taskhostw",
-        "insomniapp",
-    ]
-    .iter()
-    .any(|blocked| blocked.eq_ignore_ascii_case(name))
-}
-
-#[cfg(target_os = "windows")]
 fn friendly_process_name(exe_path: &str, exe_stem: &str) -> Option<String> {
     file_version_value(exe_path, "FileDescription")
         .or_else(|| file_version_value(exe_path, "ProductName"))
         .or_else(|| prettify_stem(exe_stem))
 }
 
-#[cfg(target_os = "windows")]
 fn file_version_value(exe_path: &str, key: &str) -> Option<String> {
     use std::{ffi::c_void, ptr};
     use windows::core::PCWSTR;
@@ -185,7 +169,6 @@ fn file_version_value(exe_path: &str, key: &str) -> Option<String> {
     None
 }
 
-#[cfg(target_os = "windows")]
 fn version_translations(data: &[u8]) -> Vec<(u16, u16)> {
     use std::{ffi::c_void, ptr};
     use windows::core::PCWSTR;
@@ -212,46 +195,59 @@ fn version_translations(data: &[u8]) -> Vec<(u16, u16)> {
     let count = (trans_len as usize) / 4;
     let words = unsafe { std::slice::from_raw_parts(trans_ptr as *const u16, count * 2) };
 
-    let mut pairs = Vec::with_capacity(count);
-    for chunk in words.chunks_exact(2) {
-        pairs.push((chunk[0], chunk[1]));
-    }
-
-    pairs.sort_unstable();
-    pairs.dedup();
-    pairs
+    translation_pairs(words)
 }
 
-#[cfg(target_os = "windows")]
-fn prettify_stem(stem: &str) -> Option<String> {
-    let cleaned = stem.trim();
-    if cleaned.is_empty() {
-        return None;
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Smoke test over the real `EnumWindows` traversal. A CI host may have no
+    /// visible top-level windows at all, so the assertions describe the shape of
+    /// the result rather than its contents.
+    #[test]
+    fn list_windows_apps_returns_sorted_names_without_noise_or_self() {
+        let apps = list_windows_apps();
+
+        let mut expected = apps.clone();
+        expected.sort_by_key(|name| name.to_ascii_lowercase());
+        assert_eq!(apps, expected, "results must be sorted case-insensitively");
+
+        assert!(
+            !apps
+                .iter()
+                .any(|name| name.eq_ignore_ascii_case("insomniapp")),
+            "the app must never offer itself as a disguise"
+        );
+        assert!(
+            !apps.iter().any(|name| name.trim().is_empty()),
+            "blank names must be filtered out"
+        );
     }
 
-    let words: Vec<String> = cleaned
-        .split(|c: char| c == '-' || c == '_' || c.is_whitespace())
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut chars = part.chars();
-            match chars.next() {
-                Some(first) => format!("{}{}", first.to_ascii_uppercase(), chars.as_str()),
-                None => String::new(),
-            }
-        })
-        .collect();
+    /// `file_version_value` cannot be reached without a real executable. Windows
+    /// always ships `explorer.exe`, whose version resource carries both keys the
+    /// friendly-name fallback consults.
+    #[test]
+    fn friendly_process_name_prefers_the_version_resource_over_the_stem() {
+        let system_root = std::env::var("SystemRoot").expect("SystemRoot must be set on Windows");
+        let explorer = format!("{system_root}\\explorer.exe");
 
-    if words.is_empty() {
-        None
-    } else {
-        Some(words.join(" "))
+        let name = friendly_process_name(&explorer, "explorer").expect("a display name");
+
+        // The prettified stem would be exactly "Explorer"; the version resource
+        // yields something richer, e.g. "Windows Explorer".
+        assert!(!name.is_empty());
+        assert_ne!(
+            name, "Explorer",
+            "the version resource must win over the stem"
+        );
     }
-}
 
-#[cfg(target_os = "windows")]
-fn to_wide_null(value: &str) -> Vec<u16> {
-    OsStr::new(value)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect()
+    #[test]
+    fn friendly_process_name_falls_back_to_the_stem_for_a_missing_binary() {
+        let name = friendly_process_name("Z:\\definitely\\not\\here.exe", "my-cool_app");
+
+        assert_eq!(name, Some("My Cool App".to_string()));
+    }
 }

@@ -1,3 +1,9 @@
+//! Application bootstrap.
+//!
+//! [`run`] wires the Tauri builder together and cannot execute without a real
+//! webview and event loop, so this file is excluded from coverage: see the
+//! coverage policy in `README.md`.
+
 mod commands;
 mod disguise;
 mod keepawake;

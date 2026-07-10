@@ -1,15 +1,29 @@
+//! Disguise mode: presents the app under another application's name.
+//!
+//! Name handling lives in [`name`], persistence in [`store`], and the Windows
+//! process-name helpers in [`process_name`]; all three are covered by tests.
+//! This module is the adapter that reaches into the Tauri `AppHandle` for the
+//! app data directory, the main window, and the tray, so it is excluded from
+//! coverage: see the coverage policy in `README.md`.
+
+#[cfg(target_os = "windows")]
 mod enumerate;
+mod name;
+#[cfg(target_os = "windows")]
+mod process_name;
+mod store;
+
+use std::path::PathBuf;
+
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::AppState;
-use serde::{Deserialize, Serialize};
-use std::fs;
-use tauri::{AppHandle, Emitter, Manager};
+use name::sanitize_name;
 
 pub const DEFAULT_APP_NAME: &str = "insomniAPP";
 pub const TRAY_ID: &str = "main-tray";
-const DISGUISE_STATE_FILE: &str = "disguise_state.json";
 const DISGUISE_WINDOW_LABEL: &str = "disguise";
-const DISGUISE_NAME_MAX_LEN: usize = 80;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,11 +31,6 @@ pub struct DisguiseStatePayload {
     pub supported: bool,
     pub current_name: String,
     pub is_disguised: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct PersistedDisguiseState {
-    pub name: Option<String>,
 }
 
 pub fn is_supported() -> bool {
@@ -56,7 +65,7 @@ pub fn apply_disguise(app: &AppHandle, name: String) -> Result<(), String> {
 
     let sanitized =
         sanitize_name(&name).ok_or_else(|| "Disguise name cannot be empty".to_string())?;
-    persist_name(app, Some(sanitized.clone()))?;
+    persist_name(app, Some(&sanitized))?;
     set_runtime_name(app, Some(sanitized));
     apply_identity(app);
     Ok(())
@@ -134,39 +143,18 @@ fn apply_identity(app: &AppHandle) {
     }
 }
 
-fn sanitize_name(name: &str) -> Option<String> {
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.chars().take(DISGUISE_NAME_MAX_LEN).collect())
-    }
+fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_local_data_dir()
+        .map_err(|e| format!("failed to resolve app data directory: {e}"))
 }
 
 fn load_persisted_name(app: &AppHandle) -> Option<String> {
-    let dir = app.path().app_local_data_dir().ok()?;
-    let path = dir.join(DISGUISE_STATE_FILE);
-    let content = fs::read_to_string(path).ok()?;
-    let persisted = serde_json::from_str::<PersistedDisguiseState>(&content).ok()?;
-    persisted.name.and_then(|name| sanitize_name(&name))
+    store::load_name(&app_data_dir(app).ok()?)
 }
 
-fn persist_name(app: &AppHandle, name: Option<String>) -> Result<(), String> {
-    let dir = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|e| format!("failed to resolve app data directory: {e}"))?;
-
-    fs::create_dir_all(&dir)
-        .map_err(|e| format!("failed to create app data directory {}: {e}", dir.display()))?;
-
-    let path = dir.join(DISGUISE_STATE_FILE);
-    let payload = PersistedDisguiseState { name };
-    let json = serde_json::to_string(&payload)
-        .map_err(|e| format!("failed to serialize disguise state: {e}"))?;
-
-    fs::write(&path, json)
-        .map_err(|e| format!("failed to write disguise state to {}: {e}", path.display()))
+fn persist_name(app: &AppHandle, name: Option<&str>) -> Result<(), String> {
+    store::save_name(&app_data_dir(app)?, name)
 }
 
 #[cfg(target_os = "windows")]
@@ -174,26 +162,6 @@ fn set_process_app_user_model_id(name: &str) {
     use windows::core::HSTRING;
     use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
 
-    let mut slug = String::new();
-    let mut last_was_dot = false;
-
-    for ch in name.chars() {
-        if ch.is_ascii_alphanumeric() {
-            slug.push(ch.to_ascii_lowercase());
-            last_was_dot = false;
-        } else if !last_was_dot {
-            slug.push('.');
-            last_was_dot = true;
-        }
-    }
-
-    let slug = slug.trim_matches('.').to_string();
-    let slug = if slug.is_empty() {
-        "insomniapp".to_string()
-    } else {
-        slug
-    };
-
-    let app_id = format!("com.insomniapp.{slug}");
+    let app_id = name::app_user_model_id(name);
     let _ = unsafe { SetCurrentProcessExplicitAppUserModelID(&HSTRING::from(app_id)) };
 }

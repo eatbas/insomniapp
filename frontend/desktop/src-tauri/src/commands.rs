@@ -1,3 +1,21 @@
+//! Tauri IPC surface.
+//!
+//! Every command here is a thin wrapper that unlocks shared state or forwards
+//! to [`crate::disguise`]; the behaviour they expose is covered by the tests on
+//! [`crate::state::AppStatus`] and the disguise helpers. The tests below pin the
+//! one thing the wrappers own outright: the wire format of [`SettingsPayload`].
+//!
+//! Driving the commands through `tauri::test`'s `MockRuntime` was tried and
+//! abandoned. Constructing any mock `App` links `muda`, which imports
+//! `TaskDialogIndirect` from comctl32 **v6**. Only the bundled app receives an
+//! activation-context manifest selecting v6, so the `cargo test` harness aborts
+//! at load with `STATUS_ENTRYPOINT_NOT_FOUND` (0xc0000139) before a single test
+//! runs. Cargo's `rustc-link-arg-tests` cannot patch this, as it applies to
+//! `tests/` targets rather than to the lib's unit-test harness.
+//!
+//! This file therefore remains a documented coverage exclusion: see the coverage
+//! policy in `README.md`.
+
 use tauri::{AppHandle, State};
 
 use crate::disguise::{self, DisguiseStatePayload};
@@ -11,7 +29,7 @@ pub fn get_status(state: State<'_, AppState>) -> AppStatus {
 #[tauri::command]
 pub fn toggle_enabled(state: State<'_, AppState>) -> AppStatus {
     let mut status = state.status.lock().unwrap();
-    status.enabled = !status.enabled;
+    status.toggle_enabled();
     status.clone()
 }
 
@@ -25,12 +43,10 @@ pub struct SettingsPayload {
 #[tauri::command]
 pub fn update_settings(state: State<'_, AppState>, settings: SettingsPayload) -> AppStatus {
     let mut status = state.status.lock().unwrap();
-    if let Some(v) = settings.idle_threshold_secs {
-        status.idle_threshold_secs = v;
-    }
-    if let Some(v) = settings.simulation_interval_secs {
-        status.simulation_interval_secs = v;
-    }
+    status.apply_settings(
+        settings.idle_threshold_secs,
+        settings.simulation_interval_secs,
+    );
     status.clone()
 }
 
@@ -59,3 +75,67 @@ pub fn reset_disguise(app: AppHandle) -> Result<(), String> {
     disguise::reset_disguise(&app)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The frontend sends `invoke("update_settings", { settings: { ... } })`
+    /// with camelCase keys. Nothing else pins that contract on the Rust side.
+    fn parse(json: &str) -> SettingsPayload {
+        serde_json::from_str(json).expect("the payload must deserialise")
+    }
+
+    #[test]
+    fn settings_payload_reads_camel_case_keys() {
+        let payload = parse(r#"{"idleThresholdSecs":45,"simulationIntervalSecs":20}"#);
+
+        assert_eq!(payload.idle_threshold_secs, Some(45));
+        assert_eq!(payload.simulation_interval_secs, Some(20));
+    }
+
+    /// `SettingsForm` debounces one edited field at a time, so each payload it
+    /// sends carries exactly one key and omits the other entirely.
+    #[test]
+    fn settings_payload_allows_either_field_to_be_omitted() {
+        let idle_only = parse(r#"{"idleThresholdSecs":45}"#);
+        assert_eq!(idle_only.idle_threshold_secs, Some(45));
+        assert_eq!(idle_only.simulation_interval_secs, None);
+
+        let interval_only = parse(r#"{"simulationIntervalSecs":20}"#);
+        assert_eq!(interval_only.idle_threshold_secs, None);
+        assert_eq!(interval_only.simulation_interval_secs, Some(20));
+    }
+
+    #[test]
+    fn settings_payload_treats_an_explicit_null_as_absent() {
+        let payload = parse(r#"{"idleThresholdSecs":null,"simulationIntervalSecs":null}"#);
+
+        assert_eq!(payload.idle_threshold_secs, None);
+        assert_eq!(payload.simulation_interval_secs, None);
+    }
+
+    #[test]
+    fn settings_payload_rejects_snake_case_keys() {
+        // A regression here would silently ignore every settings update, so the
+        // rename is asserted from both directions.
+        let payload = parse(r#"{"idle_threshold_secs":45,"simulationIntervalSecs":20}"#);
+
+        assert_eq!(payload.idle_threshold_secs, None);
+        assert_eq!(payload.simulation_interval_secs, Some(20));
+    }
+
+    #[test]
+    fn a_camel_case_payload_drives_the_documented_state_transition() {
+        let mut status = AppStatus::default();
+        let payload = parse(r#"{"idleThresholdSecs":45,"simulationIntervalSecs":0}"#);
+
+        status.apply_settings(
+            payload.idle_threshold_secs,
+            payload.simulation_interval_secs,
+        );
+
+        assert_eq!(status.idle_threshold_secs, 45);
+        // The below-minimum interval is rejected, leaving the previous value.
+        assert_eq!(status.simulation_interval_secs, 15);
+    }
+}

@@ -1,3 +1,12 @@
+//! System tray icon and its menu.
+//!
+//! Window placement lives in [`layout`] as a pure function. This module is a
+//! thin adapter over the Tauri tray, menu, and window APIs, none of which can
+//! be constructed without a real windowing system, so it is excluded from
+//! coverage: see the coverage policy in `README.md`.
+
+pub mod layout;
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -5,32 +14,28 @@ use tauri::{
 };
 
 use crate::{disguise, state::AppState};
-
-const WINDOW_LEFT_MARGIN: i32 = 24;
-const WINDOW_BOTTOM_MARGIN: i32 = 72;
+use layout::Point;
 
 fn position_main_window(window: &WebviewWindow) {
     let Ok(Some(monitor)) = window.primary_monitor() else {
         return;
     };
 
-    let window_size = window.outer_size().or_else(|_| window.inner_size());
-    let Ok(window_size) = window_size else {
+    let Ok(window_size) = window.outer_size().or_else(|_| window.inner_size()) else {
         return;
     };
 
-    let monitor_pos = monitor.position();
-    let monitor_size = monitor.size();
+    let monitor_origin = monitor.position();
+    let position = layout::main_window_position(
+        Point {
+            x: monitor_origin.x,
+            y: monitor_origin.y,
+        },
+        monitor.size().height,
+        window_size.height,
+    );
 
-    let x = monitor_pos.x + WINDOW_LEFT_MARGIN;
-    let y = monitor_pos.y + monitor_size.height as i32
-        - window_size.height as i32
-        - WINDOW_BOTTOM_MARGIN;
-
-    let clamped_x = x.max(monitor_pos.x);
-    let clamped_y = y.max(monitor_pos.y);
-
-    let _ = window.set_position(PhysicalPosition::new(clamped_x, clamped_y));
+    let _ = window.set_position(PhysicalPosition::new(position.x, position.y));
 }
 
 pub(crate) fn show_main_window(app: &AppHandle) {
@@ -60,7 +65,7 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
             "toggle" => {
                 let state = app.state::<AppState>();
                 let mut status = state.status.lock().unwrap();
-                status.enabled = !status.enabled;
+                status.toggle_enabled();
                 let _ = app.emit("status-update", status.clone());
             }
             "show" => {
@@ -79,8 +84,7 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
                 ..
             } = event
             {
-                let app = tray.app_handle();
-                show_main_window(&app);
+                show_main_window(tray.app_handle());
             }
         })
         .build(app)?;
