@@ -15,6 +15,11 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    labels:
+      kuma.insomniapp.group.name: "insomniapp"
+      kuma.insomniapp-web.http.name: "website"
+      kuma.insomniapp-web.http.parent_name: "insomniapp"
+      kuma.insomniapp-web.http.url: "https://insomnia.atbas.xyz"
 
 networks:
   ea-ingress:
