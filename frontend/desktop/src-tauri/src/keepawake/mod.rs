@@ -2,20 +2,47 @@
 //!
 //! All decision logic lives in [`engine`] as a pure function. This module is a
 //! thin adapter that samples the operating system, drives the async tick loop,
-//! simulates the keypress, and emits status to the frontend. It is excluded
-//! from coverage because every line of it is an unavoidable side effect: see
-//! the coverage policy in `README.md`.
+//! holds the power state, dispatches the configured nudge, and emits status to
+//! the frontend. The nudges themselves live in [`crate::platform`] alongside the
+//! other operating-system primitives, and settings persistence lives in
+//! [`store`]; both are covered by tests. This module is excluded from coverage
+//! because every line of it is an unavoidable side effect: see the coverage
+//! policy in `README.md`.
 
 pub mod engine;
+mod store;
 
-use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::time::{interval, Duration};
 
+use crate::paths::app_data_dir;
 use crate::platform;
-use crate::state::AppState;
+use crate::state::{AppState, NudgeMethod};
 use engine::{EngineTick, IdleTracking, CHECK_INTERVAL_SECS};
+
+/// Restores the persisted nudge method into the shared status.
+///
+/// Must run before [`start_engine`]. A missing or corrupt settings file leaves
+/// the default in place, so a bad file degrades to the quiet default rather
+/// than failing startup.
+pub fn restore_settings(app: &AppHandle) {
+    let Ok(dir) = app_data_dir(app) else {
+        return;
+    };
+    let Some(method) = store::load_nudge_method(&dir) else {
+        return;
+    };
+
+    let state = app.state::<AppState>();
+    let mut status = state.status.lock().unwrap();
+    status.nudge_method = method;
+}
+
+/// Persists the nudge method so the `F15` fallback survives a restart.
+pub fn persist_nudge_method(app: &AppHandle, method: NudgeMethod) -> Result<(), String> {
+    store::save_nudge_method(&app_data_dir(app)?, method)
+}
 
 pub fn start_engine(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -34,10 +61,14 @@ pub fn start_engine(app: AppHandle) {
                 tracked_idle_secs: real_idle_start.map(|start| start.elapsed().as_secs()),
             };
 
-            let decision = {
+            // The nudge method is read under the same lock as the decision, so
+            // a settings update cannot land between the two and have this tick
+            // dispatch a nudge the decision was not made against.
+            let (decision, nudge_method) = {
                 let state = app.state::<AppState>();
                 let mut status = state.status.lock().unwrap();
-                engine::evaluate_tick(&tick, &mut status)
+                let decision = engine::evaluate_tick(&tick, &mut status);
+                (decision, status.nudge_method)
             };
 
             match decision.idle_tracking {
@@ -52,8 +83,15 @@ pub fn start_engine(app: AppHandle) {
                 }
             }
 
+            if decision.should_hold_awake {
+                platform::hold_awake();
+            }
+
             if decision.should_simulate {
-                simulate_f15();
+                match nudge_method {
+                    NudgeMethod::MouseNudge => platform::nudge_pointer(),
+                    NudgeMethod::F15 => platform::nudge_f15(),
+                }
                 last_simulate = Instant::now();
             }
 
@@ -61,10 +99,4 @@ pub fn start_engine(app: AppHandle) {
             let _ = app.emit("status-update", &status);
         }
     });
-}
-
-fn simulate_f15() {
-    if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
-        let _ = enigo.key(Key::F15, Direction::Click);
-    }
 }

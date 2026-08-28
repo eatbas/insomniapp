@@ -6,6 +6,8 @@
 //! [`super::convert`], which is covered. The smoke tests below still call each
 //! wrapper for real. See the coverage policy in `README.md`.
 
+use enigo::{Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
+
 use super::convert::idle_seconds_from_cg_seconds;
 
 extern "C" {
@@ -36,6 +38,34 @@ pub fn is_display_on() -> bool {
     true
 }
 
+/// Holds the system awake. Not yet implemented on macOS.
+///
+/// The Windows implementation resets the operating system's power idle timers
+/// directly. The macOS equivalent is an `IOPMAssertionCreateWithName` assertion
+/// from IOKit, which is not yet wired up, so a Mac still relies purely on the
+/// simulated input in [`crate::keepawake`] to stay awake.
+pub fn hold_awake() {}
+
+/// Resets the input idle counter with a relative pointer move of zero pixels.
+///
+/// The quiet default, mirroring the Windows implementation: it delivers no key
+/// event and leaves the cursor where it is.
+pub fn nudge_pointer() {
+    if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
+        let _ = enigo.move_mouse(0, 0, Coordinate::Rel);
+    }
+}
+
+/// Resets the input idle counter with a synthetic `F15` keypress.
+///
+/// Retained only as a fallback for input stacks that discard zero-delta pointer
+/// moves. `F15` is a real key that every focused application can observe.
+pub fn nudge_f15() {
+    if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
+        let _ = enigo.key(Key::F15, Direction::Click);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -56,5 +86,19 @@ mod tests {
 
         assert!(!is_session_locked());
         assert!(is_display_on());
+    }
+
+    #[test]
+    fn holding_the_power_state_is_not_yet_implemented_on_macos() {
+        hold_awake();
+    }
+
+    #[test]
+    fn nudging_the_pointer_does_not_panic() {
+        // A zero-delta move is unobservable, so it is safe to fire for real.
+        // `nudge_f15` is deliberately left untested: it injects a real key into
+        // whatever session the test runs in. `Enigo::new` failing on a headless
+        // runner is a legitimate outcome the wrapper already absorbs.
+        nudge_pointer();
     }
 }

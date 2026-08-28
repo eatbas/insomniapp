@@ -20,6 +20,12 @@ function intervalInput(): HTMLInputElement {
   return screen.getAllByRole("spinbutton")[1] as HTMLInputElement;
 }
 
+function nudgeSelect(): HTMLSelectElement {
+  // Found by its accessible name: the control has no visible label, so this is
+  // also the assertion that it stays reachable to a screen reader.
+  return screen.getByRole("combobox", { name: "Nudge method" }) as HTMLSelectElement;
+}
+
 describe("SettingsForm", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -100,6 +106,29 @@ describe("SettingsForm", () => {
     });
 
     expect(invokeMock).not.toHaveBeenCalledWith("update_settings", expect.anything());
+  });
+
+  it("renders the nudge method the backend reports", async () => {
+    renderWithTheme(<SettingsForm status={makeStatus({ nudgeMethod: "f15" })} />);
+    await act(async () => {});
+
+    expect(nudgeSelect().value).toBe("f15");
+  });
+
+  it("pushes a debounced update for the nudge method", async () => {
+    renderWithTheme(<SettingsForm status={makeStatus()} />);
+    await act(async () => {});
+
+    fireEvent.change(nudgeSelect(), { target: { value: "f15" } });
+    expect(invokeMock).not.toHaveBeenCalledWith("update_settings", expect.anything());
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("update_settings", {
+      settings: { nudgeMethod: "f15" },
+    });
   });
 
   it("renders correctly in light mode", async () => {

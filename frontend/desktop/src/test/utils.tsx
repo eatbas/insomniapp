@@ -17,6 +17,7 @@ export function makeStatus(overrides: Partial<AppStatus> = {}): AppStatus {
     isSimulating: false,
     idleThresholdSecs: 30,
     simulationIntervalSecs: 15,
+    nudgeMethod: "mouseNudge",
     ...overrides,
   };
 }

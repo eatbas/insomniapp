@@ -2,11 +2,14 @@ import { useRef, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { useTheme } from "../contexts/ThemeContext";
-import type { AppStatus } from "../types";
+import type { AppStatus, NudgeMethod, SettingsPayload } from "../types";
 
 interface Props {
   status: AppStatus;
 }
+
+/** The two numeric settings, both edited through the same debounced path. */
+type IntervalField = "idleThresholdSecs" | "simulationIntervalSecs";
 
 export default function SettingsForm({ status }: Props) {
   const { isDark } = useTheme();
@@ -27,29 +30,34 @@ export default function SettingsForm({ status }: Props) {
     };
   }, []);
 
-  const handleChange = (field: string, value: string) => {
-    const num = parseInt(value, 10);
-    if (isNaN(num) || num < 1) return;
-
+  // One debounce slot is shared by every control: the form only ever edits a
+  // single setting at a time, and the backend re-broadcasts the authoritative
+  // status every tick, so a superseded or rejected update needs no local
+  // rollback — only a handled rejection.
+  const sendSettings = (settings: SettingsPayload) => {
     if (debounceRef.current !== null) {
       clearTimeout(debounceRef.current);
     }
 
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null;
-      // The backend re-broadcasts the authoritative status every tick, so a
-      // rejected update needs no local rollback — only a handled rejection.
-      invoke("update_settings", {
-        settings: { [field]: num },
-      }).catch(() => undefined);
+      invoke("update_settings", { settings }).catch(() => undefined);
     }, 500);
   };
 
-  const inputClass = `w-10 rounded px-1 py-0.5 text-[10px] focus:outline-none ${
-    isDark
-      ? "bg-gray-800 border border-gray-700 text-white focus:border-blue-500"
-      : "bg-white border border-gray-300 text-gray-900 focus:border-blue-500"
-  }`;
+  const handleIntervalChange = (field: IntervalField, value: string) => {
+    const num = parseInt(value, 10);
+    if (isNaN(num) || num < 1) return;
+
+    sendSettings({ [field]: num });
+  };
+
+  const controlClass = isDark
+    ? "bg-gray-800 border border-gray-700 text-white focus:border-blue-500"
+    : "bg-white border border-gray-300 text-gray-900 focus:border-blue-500";
+
+  const inputClass = `w-10 rounded px-1 py-0.5 text-[10px] focus:outline-none ${controlClass}`;
+  const selectClass = `w-14 rounded px-1 py-0.5 text-[10px] focus:outline-none ${controlClass}`;
 
   return (
     <div className={`flex items-center gap-2 border-t pt-0.5 ${isDark ? "border-gray-800" : "border-gray-200"}`}>
@@ -60,7 +68,7 @@ export default function SettingsForm({ status }: Props) {
           min="10"
           max="600"
           defaultValue={status.idleThresholdSecs}
-          onChange={(e) => handleChange("idleThresholdSecs", e.target.value)}
+          onChange={(e) => handleIntervalChange("idleThresholdSecs", e.target.value)}
           className={inputClass}
         />
         <span className={`text-[10px] ${isDark ? "text-gray-600" : "text-gray-400"}`}>s</span>
@@ -73,11 +81,30 @@ export default function SettingsForm({ status }: Props) {
           max="300"
           defaultValue={status.simulationIntervalSecs}
           onChange={(e) =>
-            handleChange("simulationIntervalSecs", e.target.value)
+            handleIntervalChange("simulationIntervalSecs", e.target.value)
           }
           className={inputClass}
         />
         <span className={`text-[10px] ${isDark ? "text-gray-600" : "text-gray-400"}`}>s</span>
+      </div>
+      {/* The options name themselves, so the control carries no visible label:
+          the row has no width to spare. Uncontrolled, like the two inputs above,
+          because the backend re-broadcasts the status every tick and a
+          controlled value would snap back to the old method for the length of
+          the debounce. */}
+      <div className="flex items-center gap-1">
+        <select
+          aria-label="Nudge method"
+          title="How the idle counter is reset: a silent pointer move, or an F15 keypress"
+          defaultValue={status.nudgeMethod}
+          onChange={(e) =>
+            sendSettings({ nudgeMethod: e.target.value as NudgeMethod })
+          }
+          className={selectClass}
+        >
+          <option value="mouseNudge">Mouse</option>
+          <option value="f15">F15</option>
+        </select>
       </div>
       <div className="flex-1" />
       {version && (

@@ -7,6 +7,7 @@
 mod commands;
 mod disguise;
 mod keepawake;
+mod paths;
 mod platform;
 mod state;
 mod tray;
@@ -48,6 +49,9 @@ pub fn run() {
             let handle = app.handle().clone();
             disguise::initialize(&handle);
             platform::init_display_state_monitor();
+            // Must precede `start_engine`, so the first tick already nudges with
+            // the method the user last chose.
+            keepawake::restore_settings(&handle);
             keepawake::start_engine(handle);
             Ok(())
         })

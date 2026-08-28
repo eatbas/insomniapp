@@ -69,7 +69,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Linux Tauri and enigo dependencies
+      # `libxdo-dev` is one of Tauri v2's own documented Debian prerequisites,
+      # not an enigo-only dependency, so it stays even though enigo is now a
+      # macOS-only dependency.
+      - name: Install Linux Tauri dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update

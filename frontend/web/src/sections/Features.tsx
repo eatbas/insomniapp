@@ -13,7 +13,7 @@ const features = [
     icon: <Shield className="w-6 h-6" />,
     title: 'Keep-Awake Engine',
     description:
-      'Monitors system idle time every 3 seconds using native OS APIs. Simulates the F15 key — a key virtually never mapped to anything — so it won\'t interfere with your work.',
+      'Monitors system idle time every 3 seconds using native OS APIs. Holds off sleep through the OS power API, then nudges the idle counter with a pointer move of zero pixels — no keystroke, no cursor movement, nothing your applications can react to.',
     accent: 'green',
   },
   {

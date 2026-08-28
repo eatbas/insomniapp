@@ -45,6 +45,10 @@ pub enum IdleTracking {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EngineDecision {
     pub should_simulate: bool,
+    /// Whether the operating system's own power idle timers should be reset on
+    /// this tick, holding off sleep and display blanking without injecting any
+    /// input into the session.
+    pub should_hold_awake: bool,
     pub idle_tracking: IdleTracking,
 }
 
@@ -94,9 +98,18 @@ pub fn evaluate_tick(tick: &EngineTick, status: &mut AppStatus) -> EngineDecisio
     status.is_simulating =
         status.enabled && status.is_idle && !status.is_session_locked && !status.is_display_off;
 
+    // The power hold is deliberately independent of `is_idle`: the operating
+    // system's sleep and display timers run from the same input counter the app
+    // watches, so they must be held from the moment the app is enabled rather
+    // than from the moment its own threshold is crossed. It still yields to a
+    // locked session and to a display the user has switched off, so the app
+    // never fights a deliberate lock or blank.
+    let should_hold_awake = status.enabled && !tick.is_session_locked && tick.is_display_on;
+
     EngineDecision {
         should_simulate: status.is_simulating
             && tick.secs_since_last_simulate >= status.simulation_interval_secs,
+        should_hold_awake,
         idle_tracking,
     }
 }
@@ -335,10 +348,12 @@ mod tests {
         let copied = tick;
         let decision = EngineDecision {
             should_simulate: true,
+            should_hold_awake: true,
             idle_tracking: IdleTracking::StartBackdated(3),
         };
         let same_decision = EngineDecision {
             should_simulate: true,
+            should_hold_awake: true,
             idle_tracking: IdleTracking::StartBackdated(3),
         };
 
@@ -346,7 +361,72 @@ mod tests {
         assert_eq!(decision, same_decision);
         assert!(format!("{tick:?}").contains("os_idle_secs"));
         assert!(format!("{decision:?}").contains("should_simulate"));
+        assert!(format!("{decision:?}").contains("should_hold_awake"));
         assert!(format!("{:?}", IdleTracking::Keep).contains("Keep"));
         assert!(format!("{:?}", IdleTracking::Clear).contains("Clear"));
+    }
+
+    #[test]
+    fn an_enabled_unlocked_session_holds_the_power_state() {
+        let mut status = AppStatus::default();
+
+        let decision = evaluate_tick(&idle_tick(), &mut status);
+
+        assert!(decision.should_hold_awake);
+    }
+
+    #[test]
+    fn the_power_state_is_held_before_the_idle_threshold_is_crossed() {
+        // The OS sleep timer runs from the same input counter as the engine's
+        // own idle tracking, so the hold must not wait for the threshold.
+        let mut status = AppStatus::default();
+        let tick = EngineTick {
+            os_idle_secs: 0,
+            tracked_idle_secs: None,
+            ..idle_tick()
+        };
+
+        let decision = evaluate_tick(&tick, &mut status);
+
+        assert!(!status.is_idle);
+        assert!(decision.should_hold_awake);
+    }
+
+    #[test]
+    fn a_disabled_app_never_holds_the_power_state() {
+        let mut status = AppStatus {
+            enabled: false,
+            ..AppStatus::default()
+        };
+
+        let decision = evaluate_tick(&idle_tick(), &mut status);
+
+        assert!(!decision.should_hold_awake);
+    }
+
+    #[test]
+    fn a_locked_session_never_holds_the_power_state() {
+        let mut status = AppStatus::default();
+        let tick = EngineTick {
+            is_session_locked: true,
+            ..idle_tick()
+        };
+
+        let decision = evaluate_tick(&tick, &mut status);
+
+        assert!(!decision.should_hold_awake);
+    }
+
+    #[test]
+    fn an_off_display_never_holds_the_power_state() {
+        let mut status = AppStatus::default();
+        let tick = EngineTick {
+            is_display_on: false,
+            ..idle_tick()
+        };
+
+        let decision = evaluate_tick(&tick, &mut status);
+
+        assert!(!decision.should_hold_awake);
     }
 }

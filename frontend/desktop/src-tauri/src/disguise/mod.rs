@@ -2,9 +2,9 @@
 //!
 //! Name handling lives in [`name`], persistence in [`store`], and the Windows
 //! process-name helpers in [`process_name`]; all three are covered by tests.
-//! This module is the adapter that reaches into the Tauri `AppHandle` for the
-//! app data directory, the main window, and the tray, so it is excluded from
-//! coverage: see the coverage policy in `README.md`.
+//! The data directory comes from [`crate::paths`]. This module is the adapter
+//! that reaches into the Tauri `AppHandle` for the main window and the tray, so
+//! it is excluded from coverage: see the coverage policy in `README.md`.
 
 #[cfg(target_os = "windows")]
 mod enumerate;
@@ -13,11 +13,10 @@ mod name;
 mod process_name;
 mod store;
 
-use std::path::PathBuf;
-
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::paths::app_data_dir;
 use crate::state::AppState;
 use name::sanitize_name;
 
@@ -141,12 +140,6 @@ fn apply_identity(app: &AppHandle) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let _ = tray.set_tooltip(Some(name));
     }
-}
-
-fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_local_data_dir()
-        .map_err(|e| format!("failed to resolve app data directory: {e}"))
 }
 
 fn load_persisted_name(app: &AppHandle) -> Option<String> {

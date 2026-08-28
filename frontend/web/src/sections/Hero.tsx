@@ -67,7 +67,7 @@ export function Hero() {
         {/* Subheading */}
         <p className="text-xl md:text-2xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
           A lightweight desktop app that prevents sleep, screen lock, and away status
-          — by silently pressing F15 when you're idle.
+          — without sending a single keystroke your applications can see.
         </p>
 
         {/* CTA buttons */}

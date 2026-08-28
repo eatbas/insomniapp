@@ -19,7 +19,8 @@
 use tauri::{AppHandle, State};
 
 use crate::disguise::{self, DisguiseStatePayload};
-use crate::state::{AppState, AppStatus};
+use crate::keepawake;
+use crate::state::{AppState, AppStatus, NudgeMethod};
 
 #[tauri::command]
 pub fn get_status(state: State<'_, AppState>) -> AppStatus {
@@ -38,16 +39,35 @@ pub fn toggle_enabled(state: State<'_, AppState>) -> AppStatus {
 pub struct SettingsPayload {
     pub idle_threshold_secs: Option<u64>,
     pub simulation_interval_secs: Option<u64>,
+    pub nudge_method: Option<NudgeMethod>,
 }
 
 #[tauri::command]
-pub fn update_settings(state: State<'_, AppState>, settings: SettingsPayload) -> AppStatus {
-    let mut status = state.status.lock().unwrap();
-    status.apply_settings(
-        settings.idle_threshold_secs,
-        settings.simulation_interval_secs,
-    );
-    status.clone()
+pub fn update_settings(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    settings: SettingsPayload,
+) -> AppStatus {
+    // The lock is released before touching the filesystem: a slow or failing
+    // disk must not stall the engine tick that shares this mutex.
+    let updated = {
+        let mut status = state.status.lock().unwrap();
+        status.apply_settings(
+            settings.idle_threshold_secs,
+            settings.simulation_interval_secs,
+            settings.nudge_method,
+        );
+        status.clone()
+    };
+
+    // Only the nudge method is persisted, and only when this payload carried
+    // one. A failed write leaves the running session correct, so it is not
+    // worth failing the settings update over.
+    if settings.nudge_method.is_some() {
+        let _ = keepawake::persist_nudge_method(&app, updated.nudge_method);
+    }
+
+    updated
 }
 
 #[tauri::command]
@@ -91,6 +111,30 @@ mod tests {
 
         assert_eq!(payload.idle_threshold_secs, Some(45));
         assert_eq!(payload.simulation_interval_secs, Some(20));
+        // An omitted `Option` field is absent rather than defaulted, so a
+        // settings edit never silently rewrites the nudge method.
+        assert_eq!(payload.nudge_method, None);
+    }
+
+    #[test]
+    fn settings_payload_reads_both_nudge_methods() {
+        assert_eq!(
+            parse(r#"{"nudgeMethod":"mouseNudge"}"#).nudge_method,
+            Some(NudgeMethod::MouseNudge)
+        );
+        assert_eq!(
+            parse(r#"{"nudgeMethod":"f15"}"#).nudge_method,
+            Some(NudgeMethod::F15)
+        );
+    }
+
+    #[test]
+    fn settings_payload_rejects_an_unknown_nudge_method() {
+        // An unrecognised variant must fail deserialisation rather than quietly
+        // selecting a default, so a typo in the frontend surfaces at once.
+        let result = serde_json::from_str::<SettingsPayload>(r#"{"nudgeMethod":"f13"}"#);
+
+        assert!(result.is_err());
     }
 
     /// `SettingsForm` debounces one edited field at a time, so each payload it
@@ -132,6 +176,7 @@ mod tests {
         status.apply_settings(
             payload.idle_threshold_secs,
             payload.simulation_interval_secs,
+            payload.nudge_method,
         );
 
         assert_eq!(status.idle_threshold_secs, 45);

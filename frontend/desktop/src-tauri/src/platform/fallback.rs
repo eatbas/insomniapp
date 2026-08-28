@@ -17,6 +17,16 @@ pub fn is_display_on() -> bool {
     true
 }
 
+/// Holds the system awake. Unsupported on this target, so a no-op.
+pub fn hold_awake() {}
+
+/// Resets the input idle counter. Unsupported on this target, so a no-op.
+pub fn nudge_pointer() {}
+
+/// Resets the input idle counter with an `F15` keypress. Unsupported on this
+/// target, so a no-op.
+pub fn nudge_f15() {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -39,5 +49,16 @@ mod tests {
     #[test]
     fn initialising_the_display_monitor_is_a_no_op() {
         init_display_state_monitor();
+    }
+
+    #[test]
+    fn holding_the_power_state_is_a_no_op() {
+        hold_awake();
+    }
+
+    #[test]
+    fn neither_nudge_does_anything() {
+        nudge_pointer();
+        nudge_f15();
     }
 }
