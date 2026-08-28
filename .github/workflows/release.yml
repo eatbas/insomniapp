@@ -1,6 +1,10 @@
 name: Release
 
 on:
+  # Attaches to the release matching the version in `tauri.conf.json`, so it can
+  # verify the pipeline without cutting a new version. `RELEASE_CHEATSHEET.txt`
+  # documents this path.
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
@@ -16,10 +20,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 'lts/*'
           cache: 'npm'
@@ -55,15 +59,21 @@ jobs:
           includeUpdaterJson: true
 
   build-macos:
+    # tauri-action builds latest.json by reading the copy already attached to the
+    # release, adding its own platforms, and re-uploading. Run in parallel, both
+    # jobs can read before either writes and the later upload drops the other's
+    # platform. Serialising costs wall-clock time and buys a deterministic
+    # manifest.
+    needs: build-windows
     runs-on: macos-latest
     permissions:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 'lts/*'
           cache: 'npm'
@@ -91,7 +101,13 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: frontend/desktop
-          args: --target universal-apple-darwin --bundles dmg
+          # `app` is required, not optional: the macOS updater consumes
+          # `.app.tar.gz`, which Tauri only emits from the `app` bundle. With
+          # `dmg` alone the job produces no signature, tauri-action logs
+          # "Signature not found for the updater JSON. Skipping upload...",
+          # and latest.json ends up Windows-only — which is why macOS has
+          # never been able to auto-update.
+          args: --target universal-apple-darwin --bundles app,dmg
           tagName: v__VERSION__
           releaseName: 'insomniAPP v__VERSION__'
           releaseBody: 'See the assets below to download the installer for your platform.'

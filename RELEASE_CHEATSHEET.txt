@@ -13,20 +13,18 @@ HOW RELEASES WORK
 CREATING A NEW RELEASE (automated)
 ------------------------------------
 
-PowerShell:   .\scripts\release.ps1             (patch: 0.1.0 -> 0.1.1)
-              .\scripts\release.ps1 minor       (minor: 0.1.0 -> 0.2.0)
-              .\scripts\release.ps1 major       (major: 0.1.0 -> 1.0.0)
-              .\scripts\release.ps1 0.5.0       (explicit version)
+./scripts/release.sh              (patch: 0.1.0 -> 0.1.1)
+./scripts/release.sh minor        (minor: 0.1.0 -> 0.2.0)
+./scripts/release.sh major        (major: 0.1.0 -> 1.0.0)
+./scripts/release.sh 0.5.0        (explicit version)
 
-Bash/macOS:   ./scripts/release.sh              (patch: 0.1.0 -> 0.1.1)
-              ./scripts/release.sh minor        (minor: 0.1.0 -> 0.2.0)
-              ./scripts/release.sh major        (major: 0.1.0 -> 1.0.0)
-              ./scripts/release.sh 0.5.0        (explicit version)
+Runs on Linux, macOS, and Git Bash on Windows. The PowerShell script was
+removed; this is the only release script.
 
 No argument = auto-increment patch version.
 
 The script shows current/new version, asks to confirm, then:
-  1. Bumps version in all 3 files
+  1. Bumps version in all 4 files
   2. Commits the bump
   3. Creates the git tag
   4. Pushes commit + tag to origin
@@ -37,16 +35,22 @@ Monitor at:   https://github.com/eatbas/insomniapp/actions
 MANUAL STEPS (if you prefer not using the script)
 --------------------------------------------------
 
-1. Bump version in ALL THREE files (they must match):
+1. Bump version in ALL FOUR files (they must match):
 
    frontend/desktop/src-tauri/tauri.conf.json   "version": "0.2.0"
    frontend/desktop/src-tauri/Cargo.toml        version = "0.2.0"
+   frontend/desktop/src-tauri/Cargo.lock        the insomniapp package entry
    frontend/desktop/package.json                "version": "0.2.0"
+
+   Cargo.lock is easy to forget: cargo rewrites it on the next build anyway,
+   so a stale entry is invisible until a `--locked` build fails or every
+   build starts dirtying the working tree.
 
 2. Commit, tag, push:
 
    git add frontend/desktop/src-tauri/tauri.conf.json \
            frontend/desktop/src-tauri/Cargo.toml \
+           frontend/desktop/src-tauri/Cargo.lock \
            frontend/desktop/package.json
    git commit -m "chore: bump version to 0.2.0"
    git tag v0.2.0
@@ -57,23 +61,45 @@ MANUAL DISPATCH (testing without a tag)
 ---------------------------------------
 GitHub > Actions > Release > Run workflow > select branch > Run
 
-Note: This reads the version from tauri.conf.json and creates
-a release with that version. Useful for testing the pipeline.
+Note: This reads the version from tauri.conf.json and attaches to the
+release with that version, creating it if it does not exist. Useful for
+testing the pipeline without cutting a new version -- but be aware it
+will add assets to an already-published release of the same version.
 
 
 WHAT GETS BUILT
 ---------------
-Windows x64:   insomniAPP_{version}_x64-setup.exe   (NSIS installer)
-macOS universal: insomniAPP_{version}_universal.dmg  (Apple Silicon + Intel)
-Updater:       latest.json                           (auto-updater manifest)
+Windows x64:     insomniAPP_{version}_x64-setup.exe      (NSIS installer)
+                 insomniAPP_{version}_x64-setup.exe.sig   (updater signature)
+macOS universal: insomniAPP_{version}_universal.dmg       (Apple Silicon + Intel)
+                 insomniAPP_{version}_universal.app.tar.gz      (updater bundle)
+                 insomniAPP_{version}_universal.app.tar.gz.sig  (updater signature)
+Updater:         latest.json                             (auto-updater manifest)
+
+The macOS updater consumes the .app.tar.gz, NOT the .dmg. The macOS job must
+therefore build the `app` bundle as well as `dmg`. Without it, the job produces
+no signature, tauri-action skips latest.json entirely, and the manifest ends up
+Windows-only -- which is exactly what happened for every release up to v0.7.2,
+leaving macOS unable to auto-update.
+
+The macOS job runs after the Windows job on purpose. tauri-action assembles
+latest.json by reading the copy already on the release and adding its own
+platforms, so running both jobs in parallel races: whichever writes last can
+drop the other's entry.
 
 
 AUTO-UPDATER FLOW
 -----------------
-- App launches -> checks latest.json from GitHub Releases
-- If newer version exists -> green "Update vX.Y.Z available" button appears
-- User clicks -> downloads, verifies signature, installs, restarts
+- App launches -> checks latest.json from GitHub Releases, then every 4 hours
+  and whenever the window regains focus (5 minute cooldown between checks)
+- If a newer version exists it installs automatically -- there is no button and
+  no prompt. The only UI is an "Updating to vX.Y.Z..." strip while it works
+- Downloads, verifies signature, installs, restarts
 - Signature verification uses the public key in tauri.conf.json
+- Failures are swallowed silently by design, so "it is not updating" will never
+  surface an error in the app. Check latest.json on the release first:
+      gh release download vX.Y.Z -p latest.json -O - | python3 -m json.tool
+  and confirm the `platforms` object has an entry for your OS and arch
 
 
 VERSION FORMAT
@@ -93,7 +119,7 @@ IMPORTANT RULES
   Tag v0.2.0 -> tauri.conf.json "version": "0.2.0"
   If they don't match, the release will be created with the wrong tag.
 
-- All three version files must be in sync.
+- All four version files must be in sync.
 
 - Never lose the signing private key (~/.tauri/insomniapp.key)
   Without it, you cannot sign updates and existing users cannot update.
@@ -123,14 +149,16 @@ Then add them as env vars in the workflow's tauri-action step.
 QUICK REFERENCE
 ---------------
 Workflow file:    .github/workflows/release.yml
+Release script:   scripts/release.sh
 Tauri config:     frontend/desktop/src-tauri/tauri.conf.json
 Rust config:      frontend/desktop/src-tauri/Cargo.toml
+Rust lockfile:    frontend/desktop/src-tauri/Cargo.lock
 Package config:   frontend/desktop/package.json
 Signing key:      ~/.tauri/insomniapp.key (PRIVATE - never commit)
 Public key:       Embedded in tauri.conf.json (safe to commit)
 GitHub secret:    TAURI_SIGNING_PRIVATE_KEY
 
-.\scripts\release.ps1           # 0.1.0 -> 0.1.1 (patch, default)
-.\scripts\release.ps1 minor     # 0.1.0 -> 0.2.0
-.\scripts\release.ps1 major     # 0.1.0 -> 1.0.0
-.\scripts\release.ps1 2.0.0     # explicit version
+./scripts/release.sh            # 0.1.0 -> 0.1.1 (patch, default)
+./scripts/release.sh minor      # 0.1.0 -> 0.2.0
+./scripts/release.sh major      # 0.1.0 -> 1.0.0
+./scripts/release.sh 2.0.0      # explicit version
