@@ -125,7 +125,7 @@ startup.
 | Technology | Version | Purpose |
 |---|---|---|
 | **React** | 19 | UI framework |
-| **TypeScript** | 6 | Type-safe JavaScript |
+| **TypeScript** | 7 | Type-safe JavaScript |
 | **Tailwind CSS** | 4 | Utility-first styling |
 | **Vite** | 8 | Build tool and dev server |
 | **@tauri-apps/api** | 2 | Frontend-to-backend communication |
@@ -209,7 +209,7 @@ insomniapp/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (^20.19.0 or >=22.12.0)
+- [Node.js](https://nodejs.org/) (^22.22.2, ^24.15.0, or >=26.0.0)
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
 - [Tauri CLI prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
 
