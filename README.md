@@ -124,22 +124,23 @@ startup.
 ### Frontend
 | Technology | Version | Purpose |
 |---|---|---|
-| **React** | 19 | UI framework |
-| **TypeScript** | 7 | Type-safe JavaScript |
-| **Tailwind CSS** | 4 | Utility-first styling |
-| **Vite** | 8 | Build tool and dev server |
-| **@tauri-apps/api** | 2 | Frontend-to-backend communication |
+| **React** | 19.3.1 | UI framework |
+| **TypeScript** | 7.0.2 | Type-safe JavaScript |
+| **Tailwind CSS** | 4.3.5 | Utility-first styling |
+| **Vite** | 8.3.6 | Build tool and dev server |
+| **Lucide React** | 1.70.0 | Marketing site icons |
+| **@tauri-apps/api** | 2.12.4 | Frontend-to-backend communication |
 
 ### Backend
 | Technology | Version | Purpose |
 |---|---|---|
-| **Tauri** | 2 | Desktop application framework |
-| **Rust** | 2021 Edition | Systems language for performance |
-| **enigo** | 0.6 | Cross-platform input simulation |
-| **tokio** | 1 | Async runtime for the engine loop |
-| **serde** | 1 | Serialization between frontend and backend |
-| **windows** | 0.62 | Windows API bindings |
-| **core-foundation** | 0.10 | macOS native APIs |
+| **Tauri** | 2.12.5 | Desktop application framework |
+| **Rust** | 1.99.1 (edition 2021) | Systems language for performance |
+| **enigo** | 0.6.1 | Cross-platform input simulation |
+| **tokio** | 1.54.1 | Async runtime for the engine loop |
+| **serde** | 1.0.229 | Serialisation between frontend and backend |
+| **windows** | 0.62.2 | Windows API bindings |
+| **core-foundation** | 0.10.1 | macOS native APIs |
 
 ---
 
@@ -209,74 +210,86 @@ insomniapp/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (^22.22.2, ^24.15.0, or >=26.0.0)
-- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
+- [Node.js](https://nodejs.org/) 26.13.0 with its bundled npm 11.20.0; the
+  repository pins Node in `.node-version` and npm in both frontend manifests
+- [Rust](https://www.rust-lang.org/tools/install) 1.99.1, selected by
+  `rust-toolchain.toml` with rustfmt, Clippy and llvm-tools-preview; the
+  application's minimum supported Rust version is 1.90 (edition 2021)
 - [Tauri CLI prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/insomniapp.git
+git clone https://github.com/eatbas/insomniapp.git
 cd insomniapp
 
 # Install frontend dependencies
-npm install
+npm --prefix frontend/web ci
+npm --prefix frontend/desktop ci
 ```
 
 ### Development
 
 ```bash
 # Start in development mode (launches both Vite dev server and Tauri window)
-npm run tauri dev
+npm --prefix frontend/desktop run tauri dev
+
+# Start the marketing site
+npm --prefix frontend/web run dev
 ```
 
 ### Build for Production
 
 ```bash
 # Build the production application
-npm run tauri build
+npm --prefix frontend/desktop run tauri build
+
+# Build the marketing site
+npm --prefix frontend/web run build
 ```
 
-The built application will be in `src-tauri/target/release/bundle/`.
+The built application will be in
+`frontend/desktop/src-tauri/target/release/bundle/`. Run these examples from the
+repository root. CI, releases and the Docker builder use the same pinned Node
+version; the web image also pins its Nginx runtime by version and digest.
 
 ---
 
 ## Testing and Coverage
 
-Every test command enforces a **100% coverage gate** and fails the build below it.
+Coverage commands enforce a **100% coverage gate** and fail the build below it.
 The same gates run on every pull request in `.github/workflows/ci.yml`.
 
 ### Frontend (Vitest + React Testing Library)
 
-Both React packages use Vitest with the V8 coverage provider and a `jsdom`
-environment, with thresholds of 100% for lines, statements, functions, and
-branches.
+Both React packages lock Vitest and its V8 coverage provider to 5.1.0 and use
+jsdom 31.0.0, with thresholds of 100% for lines, statements, functions, and
+branches. Focused `test:run` commands run selected tests without enforcing the
+comprehensive coverage gate.
 
 ```bash
 # Marketing site
-cd frontend/web
-npm ci
-npm run test            # watch mode
-npm run test:coverage   # single run, enforces the 100% gate
+npm --prefix frontend/web ci
+npm --prefix frontend/web run test            # watch mode
+npm --prefix frontend/web run test:coverage   # single run, enforces the 100% gate
 
 # Desktop frontend (Tauri APIs are mocked in src/test/setup.ts)
-cd frontend/desktop
-npm ci
-npm run test:coverage
+npm --prefix frontend/desktop ci
+npm --prefix frontend/desktop run test:coverage
 ```
 
 ### Rust backend (cargo-llvm-cov)
 
 ```bash
-cargo install cargo-llvm-cov --locked   # one-off
-rustup component add llvm-tools-preview # one-off
+cargo install cargo-llvm-cov --version 0.9.1 --locked # one-off
+# rust-toolchain.toml selects llvm-tools-preview for the pinned toolchain
 
 cd frontend/desktop/src-tauri
 cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets --all-features
-cargo coverage --summary-only --fail-under-lines 100
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-targets --all-features
+cargo coverage --locked --summary-only --fail-under-lines 100
 ```
 
 `cargo coverage` is an alias defined in `src-tauri/.cargo/config.toml`. It pins
@@ -285,16 +298,17 @@ Running `cargo llvm-cov` directly, without that alias, measures the adapters too
 and will not reach 100%.
 
 > The Rust crate embeds the built frontend via `tauri::generate_context!`, so run
-> `npm run build` in `frontend/desktop` at least once before `cargo test`.
+> `npm --prefix frontend/desktop run build` from the repository root at least
+> once before `cargo test`.
 
 ### Inspecting HTML reports
 
 ```bash
 # Frontend: writes coverage/index.html
-cd frontend/web && npm run test:coverage && open coverage/index.html
+(cd frontend/web && npm run test:coverage && open coverage/index.html)
 
 # Rust: opens target/llvm-cov/html/index.html
-cd frontend/desktop/src-tauri && cargo coverage --html --open
+(cd frontend/desktop/src-tauri && cargo coverage --locked --html --open)
 ```
 
 CI also uploads every report as a build artefact (`coverage-web`,
@@ -308,8 +322,8 @@ without reproducing it locally.
 (cd frontend/desktop   && npm ci && npm run build && npm run test:coverage)
 (cd frontend/desktop/src-tauri \
    && cargo fmt --check \
-   && cargo clippy --all-targets --all-features -- -D warnings \
-   && cargo coverage --summary-only --fail-under-lines 100)
+   && cargo clippy --locked --all-targets --all-features -- -D warnings \
+   && cargo coverage --locked --summary-only --fail-under-lines 100)
 ```
 
 ### What counts as an acceptable exclusion
