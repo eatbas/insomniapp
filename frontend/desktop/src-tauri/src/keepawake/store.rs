@@ -45,8 +45,12 @@ pub fn save_nudge_method(dir: &Path, method: NudgeMethod) -> Result<(), String> 
 
     let path = dir.join(SETTINGS_FILE);
 
-    fs::write(&path, serialize_nudge_method(method))
-        .map_err(|e| format!("failed to write keep-awake settings to {}: {e}", path.display()))
+    fs::write(&path, serialize_nudge_method(method)).map_err(|e| {
+        format!(
+            "failed to write keep-awake settings to {}: {e}",
+            path.display()
+        )
+    })
 }
 
 #[cfg(test)]
