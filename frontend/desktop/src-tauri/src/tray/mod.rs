@@ -13,7 +13,10 @@ use tauri::{
     App, AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow,
 };
 
-use crate::{disguise, state::AppState};
+use crate::{
+    disguise,
+    state::{AppState, STATUS_UPDATE_EVENT},
+};
 use layout::Point;
 
 fn position_main_window(window: &WebviewWindow) {
@@ -66,7 +69,7 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
                 let state = app.state::<AppState>();
                 let mut status = state.status.lock().unwrap();
                 status.toggle_enabled();
-                let _ = app.emit("status-update", status.clone());
+                let _ = app.emit(STATUS_UPDATE_EVENT, status.clone());
             }
             "show" => {
                 show_main_window(app);

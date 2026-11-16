@@ -174,6 +174,7 @@ insomniapp/
 │           │   ├── lib.rs                # Tauri builder wiring                [adapter]
 │           │   ├── commands.rs           # Tauri IPC command wrappers          [adapter]
 │           │   ├── paths.rs              # App data directory lookup           [adapter]
+│           │   ├── persist.rs            # State-file read/write and error text
 │           │   ├── state.rs              # AppStatus, AppState, settings rules
 │           │   ├── keepawake/
 │           │   │   ├── engine.rs         # Pure tick decision procedure

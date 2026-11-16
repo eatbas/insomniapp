@@ -40,30 +40,34 @@ describe("App", () => {
 
   it("renders the loading state before status is available", () => {
     useAppStateMock.mockReturnValue(null);
-    render(<App />);
+    const { container } = render(<App />);
     expect(screen.getByText("Loading...")).toBeInTheDocument();
     expect(screen.queryByTestId("status-panel")).not.toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("bg-gray-900", "text-white");
   });
 
   it("renders the loading state in light mode", () => {
     localStorage.setItem("insomniapp-theme", "light");
     useAppStateMock.mockReturnValue(null);
-    render(<App />);
+    const { container } = render(<App />);
     expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("bg-gray-50", "text-gray-900");
   });
 
   it("composes the panels once status is available", () => {
-    render(<App />);
+    const { container } = render(<App />);
     expect(screen.getByTestId("status-panel")).toBeInTheDocument();
     expect(screen.getByTestId("idle-timer")).toBeInTheDocument();
     expect(screen.getByTestId("settings-form")).toBeInTheDocument();
     expect(screen.queryByText(/Updating to/)).not.toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("bg-gray-900", "text-white");
   });
 
   it("composes the panels in light mode", () => {
     localStorage.setItem("insomniapp-theme", "light");
-    render(<App />);
+    const { container } = render(<App />);
     expect(screen.getByTestId("status-panel")).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("bg-gray-50", "text-gray-900");
   });
 
   it("shows the update banner with the attempted version", () => {

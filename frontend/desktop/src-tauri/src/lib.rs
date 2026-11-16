@@ -8,6 +8,7 @@ mod commands;
 mod disguise;
 mod keepawake;
 mod paths;
+mod persist;
 mod platform;
 mod state;
 mod tray;

@@ -18,7 +18,7 @@ use tokio::time::{interval, Duration};
 
 use crate::paths::app_data_dir;
 use crate::platform;
-use crate::state::{AppState, NudgeMethod};
+use crate::state::{AppState, NudgeMethod, STATUS_UPDATE_EVENT};
 use engine::{EngineTick, IdleTracking, CHECK_INTERVAL_SECS};
 
 /// Restores the persisted nudge method into the shared status.
@@ -96,7 +96,7 @@ pub fn start_engine(app: AppHandle) {
             }
 
             let status = app.state::<AppState>().status.lock().unwrap().clone();
-            let _ = app.emit("status-update", &status);
+            let _ = app.emit(STATUS_UPDATE_EVENT, &status);
         }
     });
 }

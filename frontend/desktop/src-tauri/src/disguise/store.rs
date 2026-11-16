@@ -1,5 +1,6 @@
-use std::fs;
 use std::path::Path;
+
+use crate::persist::{read_state_file, write_state_file};
 
 use super::name::{parse_persisted_name, serialize_persisted_name};
 
@@ -11,27 +12,25 @@ const DISGUISE_STATE_FILE: &str = "disguise_state.json";
 /// A missing, unreadable, or corrupt state file yields `None` so that startup
 /// falls back to the undisguised default instead of failing.
 pub fn load_name(dir: &Path) -> Option<String> {
-    let content = fs::read_to_string(dir.join(DISGUISE_STATE_FILE)).ok()?;
-
-    parse_persisted_name(&content)
+    parse_persisted_name(&read_state_file(dir, DISGUISE_STATE_FILE)?)
 }
 
 /// Writes the disguise name to `dir`, creating the directory if needed.
 ///
 /// Passing `None` persists the undisguised state.
 pub fn save_name(dir: &Path, name: Option<&str>) -> Result<(), String> {
-    fs::create_dir_all(dir)
-        .map_err(|e| format!("failed to create app data directory {}: {e}", dir.display()))?;
-
-    let path = dir.join(DISGUISE_STATE_FILE);
-
-    fs::write(&path, serialize_persisted_name(name))
-        .map_err(|e| format!("failed to write disguise state to {}: {e}", path.display()))
+    write_state_file(
+        dir,
+        DISGUISE_STATE_FILE,
+        &serialize_persisted_name(name),
+        "disguise state",
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]

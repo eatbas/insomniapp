@@ -43,6 +43,12 @@ describe("SettingsForm", () => {
     renderWithTheme(<SettingsForm status={makeStatus()} />);
     await act(async () => {});
     expect(screen.getByText("v9.9.9")).toBeInTheDocument();
+
+    const subtleLabels = [...screen.getAllByText("s"), screen.getByText("v9.9.9")];
+    expect(subtleLabels).toHaveLength(3);
+    for (const label of subtleLabels) {
+      expect(label).toHaveClass("text-gray-600");
+    }
   });
 
   it("hides the version label when getVersion rejects", async () => {
@@ -135,6 +141,12 @@ describe("SettingsForm", () => {
     renderWithTheme(<SettingsForm status={makeStatus()} />, "light");
     await act(async () => {});
     expect(screen.getByText("v9.9.9")).toBeInTheDocument();
+
+    const subtleLabels = [...screen.getAllByText("s"), screen.getByText("v9.9.9")];
+    expect(subtleLabels).toHaveLength(3);
+    for (const label of subtleLabels) {
+      expect(label).toHaveClass("text-gray-400");
+    }
   });
 
   it("debounces rapid edits into a single update", async () => {

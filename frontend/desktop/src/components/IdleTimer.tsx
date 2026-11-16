@@ -21,7 +21,7 @@ export default function IdleTimer({ status }: Props) {
 
   return (
     <div className="flex items-center gap-1 flex-1 min-w-0">
-      <span className={`text-[10px] shrink-0 ${isDark ? "text-gray-500" : "text-gray-500"}`}>Idle</span>
+      <span className="text-[10px] shrink-0 text-gray-500">Idle</span>
       <span className={`text-[10px] font-mono shrink-0 ${isDark ? "text-white" : "text-gray-900"}`}>
         {formatTime(status.idleSeconds)}
       </span>
@@ -33,7 +33,7 @@ export default function IdleTimer({ status }: Props) {
           style={{ width: `${progress}%` }}
         />
       </div>
-      <span className={`text-[10px] shrink-0 ${isDark ? "text-gray-500" : "text-gray-500"}`}>
+      <span className="text-[10px] shrink-0 text-gray-500">
         {formatTime(status.idleThresholdSecs)}
       </span>
     </div>

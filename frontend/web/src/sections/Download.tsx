@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Download as DownloadIcon, Monitor, Apple } from 'lucide-react'
-
-const GITHUB_OWNER = 'eatbas'
-const GITHUB_REPO = 'insomniapp'
-const GITHUB_RELEASES = 'https://github.com/eatbas/insomniapp/releases/latest'
-const GITHUB_API_LATEST = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`
+import { GITHUB_LATEST_RELEASE_API_URL, GITHUB_LATEST_RELEASE_URL } from '../links'
 
 type DownloadLinks = {
   windows: string
@@ -27,8 +23,8 @@ function findAssetUrl(assets: ReleaseAsset[], matcher: RegExp): string | null {
 
 export function Download() {
   const [links, setLinks] = useState<DownloadLinks>({
-    windows: GITHUB_RELEASES,
-    macos: GITHUB_RELEASES,
+    windows: GITHUB_LATEST_RELEASE_URL,
+    macos: GITHUB_LATEST_RELEASE_URL,
   })
 
   useEffect(() => {
@@ -36,7 +32,7 @@ export function Download() {
 
     const loadLatestReleaseAssets = async () => {
       try {
-        const response = await fetch(GITHUB_API_LATEST, {
+        const response = await fetch(GITHUB_LATEST_RELEASE_API_URL, {
           headers: { Accept: 'application/vnd.github+json' },
           signal: controller.signal,
         })
@@ -46,11 +42,11 @@ export function Download() {
         const payload = (await response.json()) as LatestReleaseResponse
         const assets = payload.assets ?? []
 
-        const windows = findAssetUrl(assets, /_x64-setup\.exe$/i) ?? GITHUB_RELEASES
+        const windows = findAssetUrl(assets, /_x64-setup\.exe$/i) ?? GITHUB_LATEST_RELEASE_URL
         const macos =
           findAssetUrl(assets, /_universal\.dmg$/i) ??
           findAssetUrl(assets, /\.dmg$/i) ??
-          GITHUB_RELEASES
+          GITHUB_LATEST_RELEASE_URL
 
         setLinks({ windows, macos })
       } catch (error) {
@@ -106,7 +102,7 @@ export function Download() {
             </div>
 
             <a
-              href={GITHUB_RELEASES}
+              href={GITHUB_LATEST_RELEASE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-primary transition-colors"

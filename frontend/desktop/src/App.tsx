@@ -12,16 +12,18 @@ function AppContent() {
   const { isDark } = useTheme();
   const { installing, updateVersion } = useUpdateCheck();
 
+  const surfaceClass = isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900";
+
   if (!status) {
     return (
-      <div className={`h-screen flex items-center justify-center ${isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
+      <div className={`h-screen flex items-center justify-center ${surfaceClass}`}>
         <div className="text-gray-500 text-xs">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen px-2 pt-1 pb-0.5 flex flex-col gap-0.5 ${isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
+    <div className={`min-h-screen px-2 pt-1 pb-0.5 flex flex-col gap-0.5 ${surfaceClass}`}>
       <StatusPanel
         status={status}
         appName={disguise.currentName}

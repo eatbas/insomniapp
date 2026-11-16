@@ -26,6 +26,15 @@ describe('Hero', () => {
     render(<Hero />)
 
     expect(await screen.findByText(/v9\.9\.9 —/)).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledWith(
+      'https://api.github.com/repos/eatbas/insomniapp/releases/latest',
+      expect.objectContaining({
+        headers: { Accept: 'application/vnd.github+json' },
+      }),
+    )
+    expect(
+      screen.getByRole('link', { name: /View on GitHub/i }),
+    ).toHaveAttribute('href', 'https://github.com/eatbas/insomniapp')
   })
 
   it('falls back to no version when the API returns a non-OK response', async () => {

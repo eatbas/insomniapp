@@ -56,6 +56,8 @@ export default function SettingsForm({ status }: Props) {
     ? "bg-gray-800 border border-gray-700 text-white focus:border-blue-500"
     : "bg-white border border-gray-300 text-gray-900 focus:border-blue-500";
 
+  const subtleTextClass = isDark ? "text-gray-600" : "text-gray-400";
+
   const inputClass = `w-10 rounded px-1 py-0.5 text-[10px] focus:outline-none ${controlClass}`;
   const selectClass = `w-14 rounded px-1 py-0.5 text-[10px] focus:outline-none ${controlClass}`;
 
@@ -71,7 +73,7 @@ export default function SettingsForm({ status }: Props) {
           onChange={(e) => handleIntervalChange("idleThresholdSecs", e.target.value)}
           className={inputClass}
         />
-        <span className={`text-[10px] ${isDark ? "text-gray-600" : "text-gray-400"}`}>s</span>
+        <span className={`text-[10px] ${subtleTextClass}`}>s</span>
       </div>
       <div className="flex items-center gap-1">
         <label className="text-[10px] text-gray-500">Interval:</label>
@@ -85,7 +87,7 @@ export default function SettingsForm({ status }: Props) {
           }
           className={inputClass}
         />
-        <span className={`text-[10px] ${isDark ? "text-gray-600" : "text-gray-400"}`}>s</span>
+        <span className={`text-[10px] ${subtleTextClass}`}>s</span>
       </div>
       {/* The options name themselves, so the control carries no visible label:
           the row has no width to spare. Uncontrolled, like the two inputs above,
@@ -108,7 +110,7 @@ export default function SettingsForm({ status }: Props) {
       </div>
       <div className="flex-1" />
       {version && (
-        <span className={`text-[8px] ${isDark ? "text-gray-600" : "text-gray-400"}`}>
+        <span className={`text-[8px] ${subtleTextClass}`}>
           v{version}
         </span>
       )}

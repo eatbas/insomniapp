@@ -5,11 +5,11 @@
 //! discard the pointer nudge, and silently reverting those users to the default
 //! on every launch would leave them unprotected with no visible error.
 
-use std::fs;
 use std::path::Path;
 
 use serde_json::json;
 
+use crate::persist::{read_state_file, write_state_file};
 use crate::state::NudgeMethod;
 
 /// File name, inside the app's local data directory, holding the settings.
@@ -33,29 +33,23 @@ pub fn serialize_nudge_method(method: NudgeMethod) -> String {
 
 /// Loads the persisted nudge method from `dir`.
 pub fn load_nudge_method(dir: &Path) -> Option<NudgeMethod> {
-    let content = fs::read_to_string(dir.join(SETTINGS_FILE)).ok()?;
-
-    parse_nudge_method(&content)
+    parse_nudge_method(&read_state_file(dir, SETTINGS_FILE)?)
 }
 
 /// Writes the nudge method to `dir`, creating the directory if needed.
 pub fn save_nudge_method(dir: &Path, method: NudgeMethod) -> Result<(), String> {
-    fs::create_dir_all(dir)
-        .map_err(|e| format!("failed to create app data directory {}: {e}", dir.display()))?;
-
-    let path = dir.join(SETTINGS_FILE);
-
-    fs::write(&path, serialize_nudge_method(method)).map_err(|e| {
-        format!(
-            "failed to write keep-awake settings to {}: {e}",
-            path.display()
-        )
-    })
+    write_state_file(
+        dir,
+        SETTINGS_FILE,
+        &serialize_nudge_method(method),
+        "keep-awake settings",
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]

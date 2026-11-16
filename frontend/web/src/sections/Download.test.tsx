@@ -39,6 +39,15 @@ describe('Download', () => {
 
     await waitFor(() => expect(windowsLink()).toHaveAttribute('href', 'https://win'))
     expect(macosLink()).toHaveAttribute('href', 'https://mac-universal')
+    expect(fetch).toHaveBeenCalledWith(
+      'https://api.github.com/repos/eatbas/insomniapp/releases/latest',
+      expect.objectContaining({
+        headers: { Accept: 'application/vnd.github+json' },
+      }),
+    )
+    expect(
+      screen.getByRole('link', { name: /View all releases on GitHub/i }),
+    ).toHaveAttribute('href', RELEASES)
   })
 
   it('falls back to a generic macOS dmg when no universal build exists', async () => {

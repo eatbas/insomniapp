@@ -1,5 +1,6 @@
 import { Heart } from 'lucide-react'
 import { GitHubIcon } from '../components/GitHubIcon'
+import { GITHUB_ISSUES_URL, GITHUB_RELEASES_URL, GITHUB_REPO_URL } from '../links'
 
 export function Footer() {
   return (
@@ -15,7 +16,7 @@ export function Footer() {
 
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <a
-              href="https://github.com/eatbas/insomniapp"
+              href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 hover:text-slate-300 transition-colors"
@@ -24,7 +25,7 @@ export function Footer() {
               GitHub
             </a>
             <a
-              href="https://github.com/eatbas/insomniapp/releases"
+              href={GITHUB_RELEASES_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-slate-300 transition-colors"
@@ -32,7 +33,7 @@ export function Footer() {
               Releases
             </a>
             <a
-              href="https://github.com/eatbas/insomniapp/issues"
+              href={GITHUB_ISSUES_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-slate-300 transition-colors"

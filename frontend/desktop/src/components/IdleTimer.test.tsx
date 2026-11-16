@@ -17,6 +17,8 @@ describe("IdleTimer", () => {
 
     expect(screen.getByText("00:30")).toBeInTheDocument();
     expect(screen.getByText("01:00")).toBeInTheDocument();
+    expect(screen.getByText("Idle")).toHaveClass("text-gray-500");
+    expect(screen.getByText("01:00")).toHaveClass("text-gray-500");
     const bar = progressBar(container);
     expect(bar).toHaveClass("bg-blue-500");
     expect(bar.style.width).toBe("50%");
@@ -46,5 +48,7 @@ describe("IdleTimer", () => {
       "light",
     );
     expect(screen.getByText("00:10")).toBeInTheDocument();
+    expect(screen.getByText("Idle")).toHaveClass("text-gray-500");
+    expect(screen.getByText("01:00")).toHaveClass("text-gray-500");
   });
 });

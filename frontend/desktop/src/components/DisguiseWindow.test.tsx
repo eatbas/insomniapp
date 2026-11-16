@@ -28,6 +28,7 @@ const backend = {
   apps: [] as string[],
   disguiseRejects: false,
   applyRejects: false,
+  applyPending: false,
   resetRejects: false,
 };
 
@@ -36,6 +37,14 @@ const unlistenFn = vi.fn();
 
 function configure(overrides: Partial<typeof backend>) {
   Object.assign(backend, overrides);
+}
+
+// A failed apply or reset must return the window to idle, which re-enables
+// every action button.
+function expectActionButtonsEnabled() {
+  expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Reset to insomniAPP" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Apply & Restart" })).toBeEnabled();
 }
 
 describe("DisguiseWindow", () => {
@@ -50,6 +59,7 @@ describe("DisguiseWindow", () => {
       apps: [],
       disguiseRejects: false,
       applyRejects: false,
+      applyPending: false,
       resetRejects: false,
     });
 
@@ -62,6 +72,9 @@ describe("DisguiseWindow", () => {
         case "list_running_apps":
           return Promise.resolve(backend.apps);
         case "apply_disguise":
+          if (backend.applyPending) {
+            return new Promise(() => {});
+          }
           return backend.applyRejects
             ? Promise.reject(new Error("apply failed"))
             : Promise.resolve();
@@ -91,6 +104,14 @@ describe("DisguiseWindow", () => {
     expect(screen.getByRole("button", { name: "Chrome" })).toBeInTheDocument();
     expect(screen.getByText("insomniAPP")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apply & Restart" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Refresh" })).toHaveClass(
+      "bg-gray-800",
+      "hover:bg-gray-700",
+    );
+    expect(screen.getByRole("button", { name: "Reset to insomniAPP" })).toHaveClass(
+      "bg-gray-800",
+      "hover:bg-gray-700",
+    );
   });
 
   it("shows an empty state and disables Apply when no apps are visible", async () => {
@@ -160,6 +181,14 @@ describe("DisguiseWindow", () => {
     await user.click(screen.getByRole("button", { name: "Chrome" }));
     expect(screen.getByRole("button", { name: "Chrome" })).toHaveClass("bg-indigo-500");
     expect(screen.getByRole("button", { name: "Slack" })).not.toHaveClass("bg-indigo-500");
+    expect(screen.getByRole("button", { name: "Refresh" })).toHaveClass(
+      "bg-gray-200",
+      "hover:bg-gray-300",
+    );
+    expect(screen.getByRole("button", { name: "Reset to insomniAPP" })).toHaveClass(
+      "bg-gray-200",
+      "hover:bg-gray-300",
+    );
   });
 
   it("applies the disguise and relaunches on success", async () => {
@@ -186,6 +215,24 @@ describe("DisguiseWindow", () => {
 
     expect(await screen.findByText("Failed to apply disguise name.")).toBeInTheDocument();
     expect(relaunchMock).not.toHaveBeenCalled();
+    expectActionButtonsEnabled();
+  });
+
+  it("disables every action while an apply is pending", async () => {
+    const user = userEvent.setup();
+    configure({ apps: ["Slack"], applyPending: true });
+    renderWithTheme(<DisguiseWindow />);
+    await screen.findByRole("button", { name: "Slack" });
+
+    await user.click(screen.getByRole("button", { name: "Apply & Restart" }));
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("apply_disguise", { name: "Slack" }),
+    );
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reset to insomniAPP" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply & Restart" })).toBeDisabled();
+    expect(relaunchMock).not.toHaveBeenCalled();
   });
 
   it("resets the disguise and relaunches on success", async () => {
@@ -210,6 +257,7 @@ describe("DisguiseWindow", () => {
 
     expect(await screen.findByText("Failed to reset disguise name.")).toBeInTheDocument();
     expect(relaunchMock).not.toHaveBeenCalled();
+    expectActionButtonsEnabled();
   });
 
   it("unsubscribes from the refresh event on unmount", async () => {

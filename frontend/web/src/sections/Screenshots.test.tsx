@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { Screenshots } from './Screenshots'
 
 describe('Screenshots', () => {
@@ -15,5 +15,27 @@ describe('Screenshots', () => {
     expect(
       screen.getByRole('img', { name: 'insomniAPP light mode' }),
     ).toBeInTheDocument()
+  })
+
+  it('renders the dark card before the light card, each with its own caption', () => {
+    render(<Screenshots />)
+
+    const images = screen.getAllByRole('img')
+    expect(images).toHaveLength(2)
+
+    const expectedCards = [
+      { src: '/ss1.png', alt: 'insomniAPP dark mode', caption: 'Dark Mode' },
+      { src: '/ss2.png', alt: 'insomniAPP light mode', caption: 'Light Mode' },
+    ]
+
+    expectedCards.forEach(({ src, alt, caption }, index) => {
+      const image = images[index]
+      expect(image).toHaveAttribute('src', src)
+      expect(image).toHaveAttribute('alt', alt)
+
+      const card = image.closest<HTMLElement>('.group')
+      expect(card).not.toBeNull()
+      expect(within(card as HTMLElement).getByText(caption)).toBeInTheDocument()
+    })
   })
 })

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
+import { GITHUB_REPO_URL } from '../links'
 
 const links = [
   { href: '#features', label: 'Features' },
@@ -42,7 +43,7 @@ export function Navbar() {
             </a>
           ))}
           <a
-            href="https://github.com/eatbas/insomniapp"
+            href={GITHUB_REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
@@ -73,7 +74,7 @@ export function Navbar() {
               </a>
             ))}
             <a
-              href="https://github.com/eatbas/insomniapp"
+              href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-primary hover:text-primary-light transition-colors"

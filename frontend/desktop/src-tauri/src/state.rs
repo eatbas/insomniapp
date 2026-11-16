@@ -10,6 +10,13 @@ use std::sync::Mutex;
 /// the previous setting intact.
 pub const MIN_INTERVAL_SECS: u64 = 1;
 
+/// Event name the backend broadcasts every [`AppStatus`] snapshot under.
+///
+/// The desktop frontend listens for this exact string in
+/// `frontend/desktop/src/hooks/useAppState.ts`, so a change here must be
+/// mirrored there.
+pub const STATUS_UPDATE_EVENT: &str = "status-update";
+
 /// How the engine resets the operating system's input idle counter while the
 /// session is idle.
 ///
@@ -347,5 +354,12 @@ mod tests {
 
         assert!(state.status.lock().unwrap().enabled);
         assert!(state.disguise_name.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn the_status_update_event_matches_the_name_the_frontend_listens_for() {
+        // Pinned as a literal: `frontend/desktop/src/hooks/useAppState.ts`
+        // subscribes to this exact name, so it must never drift silently.
+        assert_eq!(STATUS_UPDATE_EVENT, "status-update");
     }
 }

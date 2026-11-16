@@ -53,34 +53,39 @@ export default function DisguiseWindow() {
   const busy = status !== "idle";
   const canApply = Boolean(selected) && status === "idle" && disguise?.supported;
 
-  // `apply` and `reset` are only ever invoked from buttons that are disabled
-  // whenever their preconditions (a valid selection while idle, and being idle
-  // respectively) do not hold, so no redundant in-handler guard is required.
-  const apply = async () => {
+  /**
+   * Runs a disguise command, then restarts the app so the new identity takes
+   * effect. Any rejection, from the command or from the relaunch, returns the
+   * window to idle with `failureMessage`.
+   */
+  const runThenRelaunch = async (
+    action: () => Promise<unknown>,
+    failureMessage: string,
+  ) => {
     setStatus("busy");
     setError(null);
 
     try {
-      await invoke("apply_disguise", { name: selected });
+      await action();
       await relaunch();
     } catch {
       setStatus("idle");
-      setError("Failed to apply disguise name.");
+      setError(failureMessage);
     }
   };
 
-  const reset = async () => {
-    setStatus("busy");
-    setError(null);
+  // `apply` and `reset`, the two callers of `runThenRelaunch`, are only ever
+  // invoked from buttons that are disabled whenever their preconditions (a
+  // valid selection while idle, and being idle respectively) do not hold, so no
+  // redundant in-handler guard is required.
+  const apply = () =>
+    runThenRelaunch(
+      () => invoke("apply_disguise", { name: selected }),
+      "Failed to apply disguise name.",
+    );
 
-    try {
-      await invoke("reset_disguise");
-      await relaunch();
-    } catch {
-      setStatus("idle");
-      setError("Failed to reset disguise name.");
-    }
-  };
+  const reset = () =>
+    runThenRelaunch(() => invoke("reset_disguise"), "Failed to reset disguise name.");
 
   const containerClass = isDark
     ? "h-screen bg-gray-900 text-white p-3"
@@ -91,6 +96,10 @@ export default function DisguiseWindow() {
     : "rounded border border-gray-200 bg-white";
 
   const mutedClass = isDark ? "text-gray-400" : "text-gray-500";
+
+  const secondaryButtonClass = isDark
+    ? "bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50"
+    : "bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:opacity-50";
 
   if (disguise && !disguise.supported) {
     return (
@@ -110,11 +119,7 @@ export default function DisguiseWindow() {
         <button
           onClick={() => void loadApps()}
           disabled={busy}
-          className={`px-2 py-1 text-[11px] rounded transition-colors ${
-            isDark
-              ? "bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50"
-              : "bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:opacity-50"
-          }`}
+          className={`px-2 py-1 text-[11px] rounded transition-colors ${secondaryButtonClass}`}
         >
           Refresh
         </button>
@@ -178,11 +183,7 @@ export default function DisguiseWindow() {
         <button
           onClick={reset}
           disabled={busy}
-          className={`px-2 py-1 text-[12px] rounded transition-colors ${
-            isDark
-              ? "bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-50"
-              : "bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:opacity-50"
-          }`}
+          className={`px-2 py-1 text-[12px] rounded transition-colors ${secondaryButtonClass}`}
         >
           Reset to insomniAPP
         </button>

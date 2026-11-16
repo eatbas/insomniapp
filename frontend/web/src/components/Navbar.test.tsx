@@ -65,6 +65,7 @@ describe('Navbar', () => {
     // While open there are two GitHub links (desktop + mobile); the second is
     // the mobile one whose click handler also collapses the menu.
     const mobileGithub = screen.getAllByRole('link', { name: 'GitHub' })[1]
+    expect(mobileGithub).toHaveAttribute('href', 'https://github.com/eatbas/insomniapp')
 
     await user.click(mobileGithub)
     expect(screen.getAllByRole('link', { name: 'GitHub' })).toHaveLength(1)

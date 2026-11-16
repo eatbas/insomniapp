@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Download, ChevronDown } from 'lucide-react'
 import { GitHubIcon } from '../components/GitHubIcon'
+import { GITHUB_LATEST_RELEASE_API_URL, GITHUB_REPO_URL } from '../links'
 
 export function Hero() {
   const [version, setVersion] = useState('')
@@ -8,7 +9,7 @@ export function Hero() {
   useEffect(() => {
     const controller = new AbortController()
 
-    fetch('https://api.github.com/repos/eatbas/insomniapp/releases/latest', {
+    fetch(GITHUB_LATEST_RELEASE_API_URL, {
       headers: { Accept: 'application/vnd.github+json' },
       signal: controller.signal,
     })
@@ -80,7 +81,7 @@ export function Hero() {
             Download Now
           </a>
           <a
-            href="https://github.com/eatbas/insomniapp"
+            href={GITHUB_REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="group flex items-center gap-2 px-8 py-4 rounded-xl glass glass-hover font-semibold transition-all duration-300 hover:-translate-y-0.5"
