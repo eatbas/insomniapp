@@ -70,9 +70,10 @@ pub fn to_wide_null(value: &str) -> Vec<u16> {
 ///
 /// A trailing half-pair is discarded rather than being padded.
 pub fn translation_pairs(words: &[u16]) -> Vec<(u16, u16)> {
-    let mut pairs: Vec<(u16, u16)> = words
-        .chunks_exact(2)
-        .map(|chunk| (chunk[0], chunk[1]))
+    let (complete_pairs, _trailing_half_pair) = words.as_chunks::<2>();
+    let mut pairs: Vec<(u16, u16)> = complete_pairs
+        .iter()
+        .map(|&[language, code_page]| (language, code_page))
         .collect();
 
     pairs.sort_unstable();
