@@ -1,11 +1,19 @@
 //! System tray icon and its menu.
 //!
-//! Window placement lives in [`layout`] as a pure function. This module is a
-//! thin adapter over the Tauri tray, menu, and window APIs, none of which can
-//! be constructed without a real windowing system, so it is excluded from
-//! coverage: see the coverage policy in `README.md`.
+//! Window placement lives in [`layout`] as a pure function, and so does the
+//! rule for keeping the icon registered with the Windows shell
+//! (`registration`, acted on by `watcher`). This module is a thin adapter over
+//! the Tauri tray, menu, and window APIs, none of which can be constructed
+//! without a real windowing system, so it is excluded from coverage: see the
+//! coverage policy in `README.md`.
 
 pub mod layout;
+// Only the Windows shell drops a tray icon without telling the application.
+// The rule is pure, so it is also compiled for tests on every platform.
+#[cfg(any(target_os = "windows", test))]
+mod registration;
+#[cfg(target_os = "windows")]
+mod watcher;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -91,6 +99,11 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
             }
         })
         .build(app)?;
+
+    // Windows can refuse the icon without an error, and the window stays hidden
+    // until the icon is clicked: keep the icon registered.
+    #[cfg(target_os = "windows")]
+    watcher::spawn(app.handle().clone());
 
     Ok(())
 }

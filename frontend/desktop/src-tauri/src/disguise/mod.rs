@@ -99,6 +99,15 @@ pub fn open_disguise_window(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// The name the app currently presents, which is also the tray tooltip.
+pub fn current_app_name(app: &AppHandle) -> String {
+    let state = app.state::<AppState>();
+    let guard = state.disguise_name.lock().unwrap();
+    guard
+        .clone()
+        .unwrap_or_else(|| DEFAULT_APP_NAME.to_string())
+}
+
 pub fn list_running_apps() -> Vec<String> {
     #[cfg(target_os = "windows")]
     {
@@ -112,14 +121,6 @@ pub fn list_running_apps() -> Vec<String> {
 }
 
 // --- Internal helpers ---
-
-fn current_app_name(app: &AppHandle) -> String {
-    let state = app.state::<AppState>();
-    let guard = state.disguise_name.lock().unwrap();
-    guard
-        .clone()
-        .unwrap_or_else(|| DEFAULT_APP_NAME.to_string())
-}
 
 fn set_runtime_name(app: &AppHandle, name: Option<String>) {
     let state = app.state::<AppState>();

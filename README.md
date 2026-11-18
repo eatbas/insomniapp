@@ -25,6 +25,7 @@ insomniAPP prevents your computer from locking the screen, going to sleep, or sh
 - Left-click the tray icon to show the compact status window
 - Right-click context menu with Toggle, Show Window, and Quit options
 - Closing the window hides it to the tray instead of quitting the app
+- On Windows, checks once a minute that the shell still holds the tray icon and asks for it again when it does not, for example after Explorer restarts
 
 ### Compact Status Window
 - Compact UI (340x78 pixels) — a single strip that stays out of your way
@@ -182,6 +183,8 @@ insomniapp/
 │           │   │   └── mod.rs            # Async loop, power hold, nudge       [adapter]
 │           │   ├── tray/
 │           │   │   ├── layout.rs         # Pure window placement
+│           │   │   ├── registration.rs   # Pure rule for keeping the icon registered
+│           │   │   ├── watcher.rs        # Windows registration watch loop     [adapter]
 │           │   │   └── mod.rs            # Tray icon and menu                  [adapter]
 │           │   ├── disguise/
 │           │   │   ├── name.rs           # Sanitising, persistence format, AppUserModelID
@@ -358,6 +361,7 @@ Currently excluded, all pinned in `src-tauri/.cargo/config.toml`:
 | `paths.rs` | `AppHandle` lookup of the app's local data directory | — | no |
 | `keepawake/mod.rs` | Unbounded async loop, clock, and `AppHandle` access for the settings store | `keepawake/engine.rs`, `keepawake/store.rs` | no |
 | `tray/mod.rs` | Tray icon, menu, and window APIs | `tray/layout.rs` | no |
+| `tray/watcher.rs` | Unbounded async loop, clock, and main-thread tray calls that need a live tray icon | `tray/registration.rs` | message registration |
 | `disguise/mod.rs` | `AppHandle` access to the data directory, window, and tray | `disguise/name.rs`, `disguise/store.rs` | no |
 | `disguise/enumerate.rs` | Win32 `EnumWindows`; result depends on which windows are open | `disguise/process_name.rs` | yes |
 | `platform/windows.rs` | `unsafe` Win32 idle, desktop, power-notification, power-hold, and `SendInput` calls | `platform/convert.rs` | yes |
