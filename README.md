@@ -129,13 +129,13 @@ startup.
 | **TypeScript** | 7.0.2 | Type-safe JavaScript |
 | **Tailwind CSS** | 4.3.5 | Utility-first styling |
 | **Vite** | 8.3.8 | Build tool and dev server |
-| **Lucide React** | 1.73.0 | Marketing site icons |
-| **@tauri-apps/api** | 2.12.4 | Frontend-to-backend communication |
+| **Lucide React** | 1.77.0 | Marketing site icons |
+| **@tauri-apps/api** | 2.12.5 | Frontend-to-backend communication |
 
 ### Backend
 | Technology | Version | Purpose |
 |---|---|---|
-| **Tauri** | 2.12.5 | Desktop application framework |
+| **Tauri** | 2.12.7 | Desktop application framework |
 | **Rust** | 1.100.0 (edition 2021) | Systems language for performance |
 | **enigo** | 0.6.1 | Cross-platform input simulation |
 | **tokio** | 1.54.1 | Async runtime for the engine loop |
@@ -214,7 +214,7 @@ insomniapp/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 26.13.1 and npm 11.21.2, explicitly selected below; the
+- [Node.js](https://nodejs.org/) 26.13.1 and npm 11.21.3, explicitly selected below; the
   repository pins Node in `.node-version` and npm in both frontend manifests
 - [Rust](https://www.rust-lang.org/tools/install) 1.100.0, selected by
   `rust-toolchain.toml` with rustfmt, Clippy and llvm-tools-preview; the
@@ -229,8 +229,8 @@ git clone https://github.com/eatbas/insomniapp.git
 cd insomniapp
 
 # Select npm explicitly; packageManager alone does not switch the executable
-npm install --global npm@11.21.2
-npm --version # 11.21.2
+npm install --global npm@11.21.3
+npm --version # 11.21.3
 
 # Install frontend dependencies
 npm --prefix frontend/web ci
@@ -260,9 +260,9 @@ npm --prefix frontend/web run build
 The built application will be in
 `frontend/desktop/src-tauri/target/release/bundle/`. Run these examples from the
 repository root. CI, releases and the Docker builder use the same pinned Node
-version and explicitly install npm 11.21.2 before dependencies. For a local
+version and explicitly install npm 11.21.3 before dependencies. For a local
 bootstrap without changing the global npm installation, prefix npm commands with
-`npm exec --yes --package=npm@11.21.2 -- npm` and verify the nested `npm --version`
+`npm exec --yes --package=npm@11.21.3 -- npm` and verify the nested `npm --version`
 in the same way. The web image also pins its Nginx runtime by version and digest.
 
 ---
@@ -274,7 +274,7 @@ The same gates run on every pull request in `.github/workflows/ci.yml`.
 
 ### Frontend (Vitest + React Testing Library)
 
-Both React packages lock Vitest and its V8 coverage provider to 5.1.0 and use
+Both React packages lock Vitest and its V8 coverage provider to 5.1.1 and use
 jsdom 31.0.1, with thresholds of 100% for lines, statements, functions, and
 branches. Focused `test:run` commands run selected tests without enforcing the
 comprehensive coverage gate.
@@ -293,7 +293,7 @@ npm --prefix frontend/desktop run test:coverage
 ### Rust backend (cargo-llvm-cov)
 
 ```bash
-cargo install cargo-llvm-cov --version 0.9.1 --locked # one-off
+cargo install cargo-llvm-cov --version 0.9.2 --locked # one-off
 # rust-toolchain.toml selects llvm-tools-preview for the pinned toolchain
 
 cd frontend/desktop/src-tauri

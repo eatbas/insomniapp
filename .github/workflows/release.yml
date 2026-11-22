@@ -29,10 +29,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/desktop/package-lock.json
 
-      - name: Select npm 11.21.2
+      - name: Select npm 11.21.3
         shell: bash
         run: |
-          npm install --global npm@11.21.2
+          npm install --global npm@11.21.3
           npm --version
 
       - name: Install Rust 1.100.0
@@ -87,10 +87,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/desktop/package-lock.json
 
-      - name: Select npm 11.21.2
+      - name: Select npm 11.21.3
         shell: bash
         run: |
-          npm install --global npm@11.21.2
+          npm install --global npm@11.21.3
           npm --version
 
       - name: Install Rust 1.100.0
